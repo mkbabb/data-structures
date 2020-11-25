@@ -86,7 +86,7 @@ class Node(Generic[T]):
 
         return self.values.pop(), right_node
 
-    def clamp_sibling_ix(self, ix: int) -> Optional["Node[T]"]:
+    def get_child(self, ix: int) -> Optional["Node[T]"]:
         if self.parent is not None:
             if ix >= 0 and ix < len(self.parent.children):
                 return self.parent.children[ix]
@@ -98,7 +98,7 @@ class Node(Generic[T]):
         left_ix = parent_ix - 1
         right_ix = parent_ix + 1
 
-        return self.clamp_sibling_ix(left_ix), self.clamp_sibling_ix(right_ix)
+        return self.get_child(left_ix), self.get_child(right_ix)
 
 
 class BTree(Generic[T]):
@@ -127,23 +127,29 @@ class BTree(Generic[T]):
         return recurse(self.root, -1)
 
     @staticmethod
-    def _successor(node: Node[T]) -> Node[T]:
+    def _successor(node: Node[T]) -> Tuple[int, Node[T]]:
+        ix = len(node.children) - 1
+        node = node.children[ix]
+
         while not node.is_leaf():
-            node = node.children[0]
-        return node
+            node = node.children[ix]
+            ix = 0
+
+        return ix, node
 
     @staticmethod
-    def _rotate(parent_ix: int, node: Node[T], left: bool) -> T:
+    def _rotate(rotate_ix: int, node: Node[T], left: bool) -> Tuple[Node[T], T]:
         parent = node.parent
-        rotate_ix = parent_ix - 1 if left else parent_ix
 
-        rotate_value = node.values.pop() if left else node.values.pop(0)
-        rotate_child = node.children.pop() if left else node.children.pop(0)
+        new_value = node.values.pop() if left else node.values.pop(0)
+        rotate_child = None
+        if len(node.children) > 0:
+            rotate_child = node.children.pop() if left else node.children.pop(0)
 
-        parent_value = parent.values[rotate_ix]
-        parent.values[rotate_ix] = rotate_value
+        old_value = parent.values[rotate_ix]
+        parent.values[rotate_ix] = new_value
 
-        return rotate_child, parent_value
+        return rotate_child, old_value
 
     @staticmethod
     def _get_order(node: Optional[Node[T]]) -> int:
@@ -153,52 +159,50 @@ class BTree(Generic[T]):
     def _delete_order_1(parent_ix: int, node: Node[T]):
         parent = node.parent
 
-        left_node, right_node = node.siblings(parent_ix)
-        left_order, right_order = (
-            BTree._get_order(left_node),
-            BTree._get_order(right_node),
-        )
-
-        def transfer() -> None:
-            child, value = (
-                BTree._rotate(parent_ix, left_node, True)
-                if left_order > 2
-                else BTree._rotate(parent_ix, right_node, False)
+        if parent is not None:
+            left_node, right_node = node.siblings(parent_ix)
+            left_order, right_order = (
+                BTree._get_order(left_node),
+                BTree._get_order(right_node),
             )
-            node.values.append(value)
-            node.children.append(child)
+            left = left_order >= 2
+            rotate_ix = parent_ix - 1 if left else parent_ix
 
-        def merge() -> None:
-            parent.children.pop(parent_ix)
-            value = parent.values.pop(parent_ix - 1)
-            node = left_node if left_order == 2 else right_node
+            def transfer() -> None:
+                child, value = BTree._rotate(
+                    rotate_ix=rotate_ix,
+                    node=left_node if left else right_node,
+                    left=left,
+                )
+                node.values.append(value)
 
-            node.values.append(value)
+            def merge() -> None:
+                value = parent.values.pop(rotate_ix)
+                parent.children.pop(parent_ix)
+                if left:
+                    left_node.values.append(value)
+                else:
+                    right_node.values.insert(0, value)
 
-        if left_order > 2 or right_order > 2:
-            transfer()
-        elif left_order == 2 or right_order == 2:
-            merge()
-            if parent.order() == 1:
-                BTree._delete_order_1(parent_ix, parent)
+            if left_order > 2 or right_order > 2:
+                transfer()
+            elif left_order <= 2 or right_order <= 2:
+                merge()
+                if parent.order() == 1:
+                    BTree._delete_order_1(parent_ix, parent)
 
     def delete(self, input_value: T):
         parent_ix, ix, node = self.find(input_value)
 
-        def delete_node(node: Node[T]) -> Tuple[Node[T], T]:
-            if node.is_leaf():
-                return node, node.values.pop(ix)
-            else:
-                successor = self._successor(node.children[-1])
-                value = node.values[ix]
-                node.values[ix] = successor.values.pop(0)
-                return successor, value
+        if node.is_leaf():
+            node.values.pop(ix)
+        else:
+            parent_ix, successor = self._successor(node)
+            node.values[ix] = successor.values.pop(0)
+            node = successor
 
-        node, out_value = delete_node(node)
         if node.order() == 1:
             self._delete_order_1(parent_ix, node)
-
-        return out_value
 
     def _split_insert(self, parent_ix: int, node: Node[T]):
         split_value, right_node = node.split()
@@ -265,24 +269,14 @@ class BTree(Generic[T]):
 tree: BTree[int] = BTree(ORDER)
 # tree.root = node1
 
-tree.insert(*range(1, 22))
+tree.insert(*range(1, 23))
 
-# tree.for_each(lambda x: print(x))
-# tree.delete(18)
-# tree.delete(2)
-# tree.delete(4)
-# tree.delete(7)
-# tree.delete(5)
-tree.delete(16)
-tree.delete(14)
-tree.delete(13)
-
-tree.delete(17)
-tree.delete(20)
-tree.delete(21)
 tree.delete(1)
-tree.delete(2)
-tree.delete(7)
-tree.delete(5)
 tree.delete(4)
-tree.delete(3)
+tree.delete(7)
+
+tree.delete(2)
+tree.delete(5)
+tree.delete(6)
+# tree.delete(3)
+# tree.delete(6)
