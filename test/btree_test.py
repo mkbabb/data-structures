@@ -1,5 +1,6 @@
 import unittest
 from typing import *
+import random
 
 from data_structures import BTree, Node, Comparator, T, default_comparator
 
@@ -76,8 +77,22 @@ class BTreeTest(unittest.TestCase):
     def test_insert_many(self):
         for order in range(TEST_ORDER, 12):
             tree = BTree(order=order)
-            tree.insert(*range(0, 1000))
+            tree.insert(*range(1000, 0, -1))
             self.assertTreeSorted(tree)
+
+    def test_unsorted_1(self):
+        tree = BTree(order=TEST_ORDER)
+        tree.insert(list("qwertyuiopasdfghjklzxcvbnm"))
+        self.assertTreeSorted(tree)
+
+    def test_unsorted_2(self):
+        tree = BTree(order=TEST_ORDER)
+        n = 1000
+        nums = set(random.randint(0, n) for _ in range(n))
+
+        tree.insert(*nums)
+
+        self.assertTreeSorted(tree)
 
     def test_delete_merge_1(self):
         tree = BTree(order=TEST_ORDER)
