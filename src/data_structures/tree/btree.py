@@ -29,10 +29,6 @@ def bisect_left(arr: List[T], x: T, comparator: Optional[Comparator[T]] = None) 
     return recurse(0, len(arr) - 1)
 
 
-# arr = [1, 2, 9, 10]
-
-# t = bisect_left(arr, 11)
-
 ORDER = 4
 
 
@@ -59,7 +55,10 @@ class Node(Generic[T]):
         return len(self.values) + 1
 
     def is_leaf(self) -> bool:
-        return len(self.children) == 0 or isinstance(self.children[0], int)
+        return len(self.children) == 0
+
+    def is_root(self) -> bool:
+        return self.parent is None
 
     def insert_child(self, ix: int, child: "Node[T]") -> None:
         self.children.insert(ix, child)
@@ -70,6 +69,9 @@ class Node(Generic[T]):
 
     def is_empty(self) -> bool:
         return len(self.values) == 0
+
+    def has_children(self) -> bool:
+        return len(self.children) > 0
 
     def split(self) -> Tuple[T, "Node[T]"]:
         split_ix = self.tree_order // 2 + 1
@@ -110,122 +112,161 @@ class BTree(Generic[T]):
         self.comparator = comparator
         self.root: Node[T] = Node()
 
-    def find(self, input_value: T) -> Tuple[int, int, Node[T]]:
-        def recurse(node: Node[T], parent_ix: int) -> Tuple[int, int, Node[T]]:
-            ix = bisect_left(node.values, input_value, self.comparator)
+    def _bisect(self, arr: List[T], x: T) -> int:
+        return bisect_left(arr, x, self.comparator)
+
+    def _bisect_positive(self, arr: List[T], x: T) -> int:
+        ix = self._bisect(arr, x)
+        return -1 * (ix + 1) if ix < 0 else ix
+
+    def _find(self, input_value: T, node: Node[T]) -> Tuple[int, Node[T]]:
+        def recurse(node: Node[T]):
+            ix = self._bisect(node.values, input_value)
 
             if ix < 0:
                 ix = -1 * (ix + 1)
                 if node.is_leaf():
-                    return parent_ix, ix, node
+                    return ix, node
                 else:
                     child = node.children[ix]
-                    return recurse(child, ix)
+                    return recurse(child)
             else:
-                return parent_ix, ix, node
+                return ix, node
 
-        return recurse(self.root, -1)
+        return recurse(node)
 
-    @staticmethod
-    def _successor(node: Node[T]) -> Tuple[int, Node[T]]:
-        ix = len(node.children) - 1
-        node = node.children[ix]
-
-        while not node.is_leaf():
-            node = node.children[ix]
-            ix = 0
-
-        return ix, node
+    def find(self, input_value: T) -> Tuple[int, Node[T]]:
+        return self._find(input_value, self.root)
 
     @staticmethod
-    def _rotate(rotate_ix: int, node: Node[T], left: bool) -> Tuple[Node[T], T]:
-        parent = node.parent
+    def _successor(ix: int, node: Node[T]) -> Node[T]:
+        if node.is_leaf():
+            return node
+        else:
+            node = node.children[ix + 1]
 
-        new_value = node.values.pop() if left else node.values.pop(0)
-        rotate_child = None
-        if len(node.children) > 0:
-            rotate_child = node.children.pop() if left else node.children.pop(0)
+            while not node.is_leaf():
+                node = node.children[0]
 
-        old_value = parent.values[rotate_ix]
-        parent.values[rotate_ix] = new_value
+            return node
 
-        return rotate_child, old_value
+    @staticmethod
+    def _rotate(parent_ix: int, node: Node[T], adj_node: Node[T], left: bool) -> None:
+        if not node.is_root():
+            parent = node.parent
+
+            rotate_ix = -1 if left else 0
+            insert_ix = 0 if left else len(node.values)
+
+            new_root = adj_node.values.pop(rotate_ix)
+
+            new_sibling = parent.values[parent_ix]
+            parent.values[parent_ix] = new_root
+
+            node.values.insert(insert_ix, new_sibling)
+
+            if adj_node.has_children():
+                child = adj_node.children.pop(rotate_ix)
+                node.children.insert(insert_ix, child)
 
     @staticmethod
     def _get_order(node: Optional[Node[T]]) -> int:
         return -1 if node is None else node.order()
 
-    @staticmethod
-    def _delete_order_1(parent_ix: int, node: Node[T]):
+    def _delete_order_1(self, ix: int, node: Node[T]):
         parent = node.parent
 
         if parent is not None:
-            left_node, right_node = node.siblings(parent_ix)
+
+            left_node, right_node = node.siblings(ix)
             left_order, right_order = (
                 BTree._get_order(left_node),
                 BTree._get_order(right_node),
             )
             left = left_order >= 2
-            rotate_ix = parent_ix - 1 if left else parent_ix
+            parent_ix = ix - 1 if left else ix
+            adj_node = left_node if left else right_node
 
             def transfer() -> None:
-                child, value = BTree._rotate(
-                    rotate_ix=rotate_ix,
-                    node=left_node if left else right_node,
+                BTree._rotate(
+                    parent_ix=parent_ix,
+                    node=node,
+                    adj_node=adj_node,
                     left=left,
                 )
-                node.values.append(value)
 
             def merge() -> None:
-                value = parent.values.pop(rotate_ix)
-                parent.children.pop(parent_ix)
-                if left:
-                    left_node.values.append(value)
-                else:
-                    right_node.values.insert(0, value)
+                node.values.append(None)
+
+                BTree._rotate(
+                    parent_ix=parent_ix,
+                    node=adj_node,
+                    adj_node=node,
+                    left=not left,
+                )
+                parent.values.pop(parent_ix)
+                parent.children.pop(ix)
 
             if left_order > 2 or right_order > 2:
                 transfer()
             elif left_order <= 2 or right_order <= 2:
                 merge()
                 if parent.order() == 1:
-                    BTree._delete_order_1(parent_ix, parent)
+                    self._delete_order_1(parent_ix, parent)
 
     def delete(self, input_value: T):
-        parent_ix, ix, node = self.find(input_value)
+        ix, node = self.find(input_value)
 
-        if node.is_leaf():
-            node.values.pop(ix)
-        else:
-            parent_ix, successor = self._successor(node)
-            node.values[ix] = successor.values.pop(0)
-            node = successor
+        def get_parent_ix() -> Tuple[Optional[int], Node[T]]:
+            if node.is_leaf():
+                parent_ix = (
+                    None
+                    if node.is_root() or node.order() > 2
+                    else self._bisect_positive(node.parent.values, input_value)
+                )
+                return parent_ix, node
+            else:
+                successor = self._successor(ix, node)
+                value = successor.values[0]
+                parent_ix = self._bisect_positive(successor.parent.values, value)
+
+                node.values[ix] = value
+
+                return parent_ix, successor
+
+        parent_ix, node = get_parent_ix()
+        value = node.values.pop(ix)
 
         if node.order() == 1:
             self._delete_order_1(parent_ix, node)
+            return value
+        else:
+            return value
 
-    def _split_insert(self, parent_ix: int, node: Node[T]):
+    def _split_insert(self, node: Node[T]):
         split_value, right_node = node.split()
 
         parent = node.parent
 
         if parent is not None:
-            parent.insert_child(parent_ix + 1, right_node)
-            parent.values.insert(parent_ix, split_value)
+            ix = self._bisect_positive(parent.values, split_value)
+
+            parent.insert_child(ix + 1, right_node)
+            parent.values.insert(ix, split_value)
         else:
             children = [node, right_node]
             values = [split_value]
             self.root = parent = Node(children=children, values=values)
 
         if parent.is_full():
-            self._split_insert(parent_ix, parent)
+            self._split_insert(parent)
 
     def _insert(self, input_value: T) -> None:
-        parent_ix, ix, node = self.find(input_value)
+        ix, node = self.find(input_value)
         node.values.insert(ix, input_value)
 
         if node.is_full():
-            self._split_insert(parent_ix, node)
+            self._split_insert(node)
 
     def insert(self, *input_values: T) -> None:
         for input_value in input_values:
@@ -244,39 +285,80 @@ class BTree(Generic[T]):
 
         recurse(self.root)
 
+    def p(self):
+        def recurse(node: Node[T], s: str, depth: int = 0):
+
+            if not node.is_leaf():
+                t_indent = ("|" + "----" * (depth + 1)) if depth > 0 else ""
+                for n, child in enumerate(node.children):
+
+                    s = recurse(child, s, depth + 1)
+
+                    if n < len(node.values):
+                        s += t_indent + str(node.values[n]) + "\n"
+            else:
+                spaces = "    " * depth
+                t_indent = spaces + "|---" if depth > 0 else ""
+
+                for value in node.values:
+                    s += "|" + t_indent + str(value) + ",\n"
+
+            return s
+
+        return recurse(self.root, "")
+
+
+# root = Node()
+# root.values = [9, 20, 30]
 
 # node1 = Node()
-# node1.values = [10, 20, 30]
+# node1.values = [5, 6]
 
 # node2 = Node()
-# node2.values = [5]
+# node2.values = [10]
 
 # node3 = Node()
-# node3.values = [17]
+# node3.values = [21, 22, 23]
+# node3.children = [1, 2, 3, 4]
 
 # node4 = Node()
-# node4.values = [22, 24, 29]
-# node4.children = [1, 2, 3, 4, 5]
-
-# node5 = Node()
-# node5.values = [31]
+# node4.values = [31, 32, 33]
 
 
-# node1.children = [node2, node3, node4, node5]
-# for node in node1.children:
-#     node.parent = node1
+# root.children = [node1, node2, node3, node4]
+# for node in root.children:
+#     node.parent = root
 
 tree: BTree[int] = BTree(ORDER)
-# tree.root = node1
 
-tree.insert(*range(1, 23))
+node = Node()
+node.values = [10, 20, 30, 40, 50, 60, 70]
+children = [0, 11, 22, 33, 44, 55, 66, 77]
+
+children = [Node([], [i], node) for i in children]
+node.children = children
+
+BTree._rotate(0, children[0], children[1], False)
+
+
+# tree.root = root
+# tree.p()
+
+# tree.insert(24)
+# tree.delete(10)
+# tree.delete(5)
+
+tree.insert(*range(1, 22))
+# tree.for_each(print)
 
 tree.delete(1)
 tree.delete(4)
 tree.delete(7)
 
-tree.delete(2)
+tree.delete(3)
 tree.delete(5)
-tree.delete(6)
-# tree.delete(3)
-# tree.delete(6)
+tree.delete(2)
+
+s = tree.p()
+
+print(s)
