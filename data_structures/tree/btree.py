@@ -4,11 +4,10 @@ from typing import *
 T = TypeVar("T")
 Comparator = Callable[[T, T], int]
 
+default_comparator = lambda x, y: -1 if x < y else 1 if x > y else 0
 
-def bisect_left(arr: List[T], x: T, comparator: Optional[Comparator[T]] = None) -> int:
-    if comparator is None:
-        comparator = lambda x, y: -1 if x < y else 1 if x > y else 0
 
+def bisect_left(arr: List[T], x: T, comparator: Comparator = default_comparator) -> int:
     def recurse(low: int, high: int) -> int:
         midpoint = (high + low) // 2
 
@@ -29,24 +28,27 @@ def bisect_left(arr: List[T], x: T, comparator: Optional[Comparator[T]] = None) 
     return recurse(0, len(arr) - 1)
 
 
-ORDER = 4
-
-
 class Node(Generic[T]):
     def __init__(
         self,
-        children: List["Node[T]"] = [],
-        values: List[T] = [],
+        tree_order: int,
+        children: Optional[List["Node[T]"]] = None,
+        values: Optional[List[T]] = None,
         parent: Optional["Node[T]"] = None,
-        tree_order: int = ORDER,
     ) -> None:
+        self.tree_order = tree_order
+
+        if children is None:
+            children = []
+        if values is None:
+            values = []
+
         self.children = children
         for child in children:
             child.parent = self
 
         self.values = values
         self.parent = parent
-        self.tree_order = tree_order
 
     def __repr__(self) -> str:
         return f"{self.values}"
@@ -83,7 +85,10 @@ class Node(Generic[T]):
         self.values = self.values[:split_ix]
 
         right_node = Node(
-            children=right_children, values=right_values, parent=self.parent
+            tree_order=self.tree_order,
+            children=right_children,
+            values=right_values,
+            parent=self.parent,
         )
 
         return self.values.pop(), right_node
@@ -104,13 +109,10 @@ class Node(Generic[T]):
 
 
 class BTree(Generic[T]):
-    def __init__(self, order: int, comparator: Optional[Comparator[T]] = None):
-        if comparator is None:
-            comparator = lambda x, y: -1 if x < y else 1 if x > y else 0
-
+    def __init__(self, order: int, comparator: Comparator = default_comparator):
         self.order = order
         self.comparator = comparator
-        self.root: Node[T] = Node()
+        self.root: Node[T] = Node(tree_order=order)
 
     def _bisect(self, arr: List[T], x: T) -> int:
         return bisect_left(arr, x, self.comparator)
@@ -174,9 +176,8 @@ class BTree(Generic[T]):
         return -1 if node is None else node.order()
 
     def _delete_order_1(self, ix: int, node: Node[T]):
-        parent = node.parent
-
-        if parent is not None:
+        if not node.is_root():
+            parent = node.parent
 
             left_node, right_node = node.siblings(ix)
             left_order, right_order = (
@@ -213,6 +214,8 @@ class BTree(Generic[T]):
                 merge()
                 if parent.order() == 1:
                     self._delete_order_1(parent_ix, parent)
+        else:
+            self.root = node.children[0]
 
     def delete(self, input_value: T):
         ix, node = self.find(input_value)
@@ -256,7 +259,9 @@ class BTree(Generic[T]):
         else:
             children = [node, right_node]
             values = [split_value]
-            self.root = parent = Node(children=children, values=values)
+            self.root = parent = Node(
+                tree_order=self.order, children=children, values=values
+            )
 
         if parent.is_full():
             self._split_insert(parent)
@@ -309,45 +314,9 @@ class BTree(Generic[T]):
 
 
 if __name__ == "__main__":
-    # root = Node()
-    # root.values = [9, 20, 30]
-
-    # node1 = Node()
-    # node1.values = [5, 6]
-
-    # node2 = Node()
-    # node2.values = [10]
-
-    # node3 = Node()
-    # node3.values = [21, 22, 23]
-    # node3.children = [1, 2, 3, 4]
-
-    # node4 = Node()
-    # node4.values = [31, 32, 33]
-
-    # root.children = [node1, node2, node3, node4]
-    # for node in root.children:
-    #     node.parent = root
-
-    tree: BTree[int] = BTree(ORDER)
-
-    # tree.root = root
-    # tree.p()
-
-    # tree.insert(24)
-    # tree.delete(10)
-    # tree.delete(5)
+    tree: BTree[int] = BTree(4)
 
     tree.insert(*range(1, 22))
-    # tree.for_each(print)
-
-    tree.delete(1)
-    tree.delete(4)
-    tree.delete(7)
-
-    tree.delete(3)
-    tree.delete(5)
-    tree.delete(2)
 
     s = tree.p()
 
