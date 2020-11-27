@@ -308,57 +308,47 @@ class BTree(Generic[T]):
         return recurse(self.root, "")
 
 
-# root = Node()
-# root.values = [9, 20, 30]
+if __name__ == "__main__":
+    # root = Node()
+    # root.values = [9, 20, 30]
 
-# node1 = Node()
-# node1.values = [5, 6]
+    # node1 = Node()
+    # node1.values = [5, 6]
 
-# node2 = Node()
-# node2.values = [10]
+    # node2 = Node()
+    # node2.values = [10]
 
-# node3 = Node()
-# node3.values = [21, 22, 23]
-# node3.children = [1, 2, 3, 4]
+    # node3 = Node()
+    # node3.values = [21, 22, 23]
+    # node3.children = [1, 2, 3, 4]
 
-# node4 = Node()
-# node4.values = [31, 32, 33]
+    # node4 = Node()
+    # node4.values = [31, 32, 33]
 
+    # root.children = [node1, node2, node3, node4]
+    # for node in root.children:
+    #     node.parent = root
 
-# root.children = [node1, node2, node3, node4]
-# for node in root.children:
-#     node.parent = root
+    tree: BTree[int] = BTree(ORDER)
 
-tree: BTree[int] = BTree(ORDER)
+    # tree.root = root
+    # tree.p()
 
-node = Node()
-node.values = [10, 20, 30, 40, 50, 60, 70]
-children = [0, 11, 22, 33, 44, 55, 66, 77]
+    # tree.insert(24)
+    # tree.delete(10)
+    # tree.delete(5)
 
-children = [Node([], [i], node) for i in children]
-node.children = children
+    tree.insert(*range(1, 22))
+    # tree.for_each(print)
 
-BTree._rotate(0, children[0], children[1], False)
+    tree.delete(1)
+    tree.delete(4)
+    tree.delete(7)
 
+    tree.delete(3)
+    tree.delete(5)
+    tree.delete(2)
 
-# tree.root = root
-# tree.p()
+    s = tree.p()
 
-# tree.insert(24)
-# tree.delete(10)
-# tree.delete(5)
-
-tree.insert(*range(1, 22))
-# tree.for_each(print)
-
-tree.delete(1)
-tree.delete(4)
-tree.delete(7)
-
-tree.delete(3)
-tree.delete(5)
-tree.delete(2)
-
-s = tree.p()
-
-print(s)
+    print(s)
