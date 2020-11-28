@@ -123,30 +123,43 @@ class BTree(Generic[T]):
             return child
 
     @staticmethod
-    def _rotate(parent_ix: int, node: Node[T], adj_node: Node[T], left: bool) -> None:
-        if not node.is_root():
-            parent = node.parent
+    def _rotate(
+        parent_ix: int,
+        node: Node[T],
+        adj_node: Node[T],
+        has_left: bool,
+        rotate_children: bool = True,
+    ) -> None:
+        parent = node.parent
+        new_root = adj_node.values.pop() if has_left else adj_node.values.pop(0)
 
-            rotate_ix = -1 if left else 0
-            insert_ix = 0 if left else len(node.values)
+        new_sibling = parent.values[parent_ix]
+        parent.values[parent_ix] = new_root
 
-            new_root = adj_node.values.pop(rotate_ix)
-
-            new_sibling = parent.values[parent_ix]
-            parent.values[parent_ix] = new_root
-
-            node.values.insert(insert_ix, new_sibling)
+        if rotate_children:
+            if has_left:
+                node.values.insert(0, new_sibling)
+            else:
+                node.values.append(new_sibling)
 
             if adj_node.has_children():
-                child = adj_node.children.pop(rotate_ix)
-                node.children.insert(insert_ix, child)
+                child = (
+                    adj_node.children.pop() if has_left else adj_node.children.pop(0)
+                )
+                child.parent = node
+                if has_left:
+                    node.children.insert(0, child)
+                else:
+                    node.children.append(child)
 
     @staticmethod
     def _get_order(node: Optional[Node[T]]) -> int:
         return -1 if node is None else node.order()
 
     def _delete_order_1(self, ix: int, node: Node[T]):
-        if not node.is_root():
+        if node.is_root():
+            self.root = node.children[0]
+        else:
             parent = node.parent
 
             left_node, right_node = node.siblings(ix)
@@ -154,16 +167,18 @@ class BTree(Generic[T]):
                 BTree._get_order(left_node),
                 BTree._get_order(right_node),
             )
-            left = left_order >= 2
-            parent_ix = ix - 1 if left else ix
-            adj_node = left_node if left else right_node
+            
+            has_left = left_order >= 2
+            parent_ix = ix - 1 if has_left else ix
+            adj_node = left_node if has_left else right_node
+            adj_node_ix = ix - 1 if has_left else ix + 1
 
             def transfer() -> None:
                 BTree._rotate(
                     parent_ix=parent_ix,
                     node=node,
                     adj_node=adj_node,
-                    left=left,
+                    has_left=has_left,
                 )
 
             def merge() -> None:
@@ -173,7 +188,7 @@ class BTree(Generic[T]):
                     parent_ix=parent_ix,
                     node=adj_node,
                     adj_node=node,
-                    left=not left,
+                    has_left=not has_left,
                 )
                 parent.values.pop(parent_ix)
                 parent.children.pop(ix)
@@ -183,9 +198,7 @@ class BTree(Generic[T]):
             elif left_order <= 2 or right_order <= 2:
                 merge()
                 if parent.order() == 1:
-                    self._delete_order_1(parent_ix, parent)
-        else:
-            self.root = node.children[0]
+                    self._delete_order_1(adj_node_ix, parent)
 
     def delete(self, input_value: T):
         ix, node = self.find(input_value)
