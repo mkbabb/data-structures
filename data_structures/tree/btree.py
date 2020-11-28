@@ -157,6 +157,7 @@ class BTree(Generic[T]):
     def _delete_order_1(self, child_ix: int, node: Node[T]):
         if node.is_root():
             self.root = node.children[0]
+            self.root.parent = None
         else:
             parent = node.parent
 
@@ -166,10 +167,10 @@ class BTree(Generic[T]):
                 BTree._get_order(right_node),
             )
 
-            go_left = left_order >= 2
+            go_left = left_order >= 2 and right_order <= 2
+
             parent_value_ix = child_ix - 1 if go_left else child_ix
             adj_node = left_node if go_left else right_node
-            adj_node_ix = child_ix - 1 if go_left else child_ix + 1
 
             def transfer() -> None:
                 BTree._rotate(
@@ -196,32 +197,38 @@ class BTree(Generic[T]):
             elif left_order <= 2 or right_order <= 2:
                 merge()
                 if parent.order() == 1:
-                    self._delete_order_1(adj_node_ix, parent)
+                    grandparent = parent.parent
+                    parent_ix = (
+                        self._bisect(grandparent.values, adj_node.values[0])
+                        if grandparent is not None
+                        else 0
+                    )
+                    self._delete_order_1(parent_ix, parent)
 
     def delete(self, input_value: T):
         value_ix, node = self.find(input_value)
 
-        def get_child_ix() -> Tuple[Optional[int], Node[T]]:
+        def get_successor_ix() -> Tuple[int, Node[T], T]:
             if node.is_leaf():
                 child_ix = (
-                    None
+                    value_ix
                     if node.is_root() or node.order() > 2
                     else self._bisect(node.parent.values, input_value)
                 )
-                return child_ix, node
+                return child_ix, node, node.values.pop(value_ix)
             else:
                 successor = self._successor(value_ix, node)
                 value = successor.values[0]
+
                 child_ix = self._bisect(successor.parent.values, value)
 
                 node.values[value_ix] = value
 
-                return child_ix, successor
+                return child_ix, successor, successor.values.pop(0)
 
-        child_ix, node = get_child_ix()
-        value = node.values.pop(value_ix)
+        child_ix, node, value = get_successor_ix()
 
-        if node.order() == 1:
+        if node.order() == 1 and not node.is_root():
             self._delete_order_1(child_ix, node)
             return value
         else:

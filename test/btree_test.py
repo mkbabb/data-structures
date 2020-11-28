@@ -7,6 +7,8 @@ from data_structures import BTree, Node, Comparator, T, default_comparator
 
 TEST_ORDER = 4
 
+random.seed(1)
+
 
 class BTreeTest(unittest.TestCase):
     def setup_rotate(self) -> List[Node]:
@@ -74,12 +76,6 @@ class BTreeTest(unittest.TestCase):
 
         self.assertTreeSorted(tree)
 
-    def test_insert_many(self):
-        for order in range(TEST_ORDER, 12):
-            tree = BTree(order=order)
-            tree.insert(*range(1000, 0, -1))
-            self.assertTreeSorted(tree)
-
     def test_unsorted_1(self):
         tree = BTree(order=TEST_ORDER)
         tree.insert(list("qwertyuiopasdfghjklzxcvbnm"))
@@ -126,6 +122,21 @@ class BTreeTest(unittest.TestCase):
 
     def test_delete_transfer(self):
         pass
+
+    def test_insert_delete_many(self):
+        n = 1000
+        nums = list(range(n))
+        random.shuffle(nums)
+
+        for order in range(TEST_ORDER, 12):
+            tree = BTree(order=order)
+            tree.insert(*nums)
+
+            random.shuffle(nums)
+
+            for num in nums:
+                self.assertTreeSorted(tree)
+                tree.delete(num)
 
 
 if __name__ == "__main__":
