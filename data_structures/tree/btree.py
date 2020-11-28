@@ -91,24 +91,19 @@ class BTree(Generic[T]):
         self.comparator = comparator
         self.root: Node[T] = Node(tree_order=order)
 
-    def _bisect(self, arr: List[T], x: T) -> int:
-        return bisect_left(arr, x, self.comparator)
-
-    def _bisect_positive(self, arr: List[T], x: T) -> int:
-        ix = self._bisect(arr, x)
-        return -1 * (ix + 1) if ix < 0 else ix
+    def _bisect(self, arr: List[T], x: T, negate_found: bool = False) -> int:
+        return bisect_left(arr, x, self.comparator, negate_found)
 
     def _find(self, input_value: T, node: Node[T]) -> Tuple[int, Node[T]]:
-        def recurse(node: Node[T]):
-            ix = self._bisect(node.values, input_value)
+        def recurse(node: Node[T]) -> Tuple[int, Node[T]]:
+            ix = self._bisect(node.values, input_value, True)
 
             if ix < 0:
                 ix = -1 * (ix + 1)
                 if node.is_leaf():
                     return ix, node
                 else:
-                    child = node.children[ix]
-                    return recurse(child)
+                    return recurse(node.children[ix])
             else:
                 return ix, node
 
@@ -122,12 +117,10 @@ class BTree(Generic[T]):
         if node.is_leaf():
             return node
         else:
-            node = node.children[ix + 1]
-
-            while not node.is_leaf():
-                node = node.children[0]
-
-            return node
+            child = node.children[ix + 1]
+            while not child.is_leaf():
+                child = child.children[0]
+            return child
 
     @staticmethod
     def _rotate(parent_ix: int, node: Node[T], adj_node: Node[T], left: bool) -> None:
@@ -202,13 +195,13 @@ class BTree(Generic[T]):
                 parent_ix = (
                     None
                     if node.is_root() or node.order() > 2
-                    else self._bisect_positive(node.parent.values, input_value)
+                    else self._bisect(node.parent.values, input_value)
                 )
                 return parent_ix, node
             else:
                 successor = self._successor(ix, node)
                 value = successor.values[0]
-                parent_ix = self._bisect_positive(successor.parent.values, value)
+                parent_ix = self._bisect(successor.parent.values, value)
 
                 node.values[ix] = value
 
@@ -229,7 +222,7 @@ class BTree(Generic[T]):
         parent = node.parent
 
         if parent is not None:
-            ix = self._bisect_positive(parent.values, split_value)
+            ix = self._bisect(parent.values, split_value)
 
             parent.insert_child(ix + 1, right_node)
             parent.values.insert(ix, split_value)
