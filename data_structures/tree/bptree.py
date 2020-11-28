@@ -136,23 +136,31 @@ class BPTree(Generic[T]):
             return node
 
     @staticmethod
-    def _rotate(parent_ix: int, node: Node[T], adj_node: Node[T], left: bool) -> None:
+    def _rotate(
+        parent_ix: int,
+        node: Node[T],
+        adj_node: Node[T],
+        has_left: bool,
+        rotate_children: bool = False,
+    ) -> None:
         parent = node.parent
-        new_root = adj_node.values.pop() if left else adj_node.values.pop(0)
+        new_root = adj_node.values.pop() if has_left else adj_node.values.pop(0)
 
-        if not node.is_leaf():
-            new_sibling = parent.values[parent_ix]
-            parent.values[parent_ix] = new_root
+        new_sibling = parent.values[parent_ix]
+        parent.values[parent_ix] = new_root
 
-            if left:
+        if rotate_children:
+            if has_left:
                 node.values.insert(0, new_sibling)
             else:
                 node.values.append(new_sibling)
 
             if adj_node.has_children():
-                child = adj_node.children.pop() if left else adj_node.children.pop(0)
-
-                if left:
+                child = (
+                    adj_node.children.pop() if has_left else adj_node.children.pop(0)
+                )
+                child.parent = node
+                if has_left:
                     node.children.insert(0, child)
                 else:
                     node.children.append(child)
@@ -172,16 +180,17 @@ class BPTree(Generic[T]):
                 BPTree._get_order(left_node),
                 BPTree._get_order(right_node),
             )
-            left = left_order >= 2
-            parent_ix = ix - 1 if left else ix
-            adj_node = left_node if left else right_node
+            has_left = left_order >= 2 and right_order < 2
+            parent_ix = ix - 1 if has_left else ix
+            adj_node = left_node if has_left else right_node
 
             def transfer() -> None:
                 BPTree._rotate(
                     parent_ix=parent_ix,
                     node=node,
                     adj_node=adj_node,
-                    left=left,
+                    has_left=has_left,
+                    rotate_children=True,
                 )
 
             def merge() -> None:
@@ -191,7 +200,8 @@ class BPTree(Generic[T]):
                     parent_ix=parent_ix,
                     node=adj_node,
                     adj_node=node,
-                    left=not left,
+                    has_left=not has_left,
+                    rotate_children=not node.is_leaf(),
                 )
 
                 parent.values.pop(parent_ix)
@@ -205,7 +215,7 @@ class BPTree(Generic[T]):
                     grandparent = parent.parent
 
                     if grandparent is not None:
-                        rotate_ix = len(adj_node.values) - 1 if left else 0
+                        rotate_ix = len(adj_node.values) - 1 if has_left else 0
                         ix = self._bisect_positive(
                             grandparent.values, adj_node.values[rotate_ix]
                         )
@@ -219,7 +229,7 @@ class BPTree(Generic[T]):
                 parent_ix = (
                     None
                     if node.is_root() or node.order() > 2
-                    else self._bisect_positive(node.parent.values, input_value)
+                    else self._bisect_positive(node.parent.values, input_value, False)
                 )
                 return parent_ix, node
             else:
@@ -230,6 +240,14 @@ class BPTree(Generic[T]):
                 node.values[ix] = value
 
                 return parent_ix, successor
+
+        previous, next = node.previous, node.next
+
+        if previous is not None:
+            previous.next = next
+
+            if next is not None:
+                next.previous = previous
 
         parent_ix, node = get_parent_ix()
         value = node.values.pop(ix)
@@ -271,14 +289,5 @@ class BPTree(Generic[T]):
             self._insert(input_value)
 
     def for_each(self, func: Callable[[T], None]) -> None:
-        def recurse(node: Node[T]) -> None:
-            if not node.is_leaf():
-                for n, child in enumerate(node.children):
-                    recurse(child)
-                    if n < len(node.values):
-                        func(node.values[n])
-            else:
-                for value in node.values:
-                    func(value)
-
-        recurse(self.root)
+        min_node = self._successor(-1, self.root)
+        min_node.next

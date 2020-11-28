@@ -14,7 +14,8 @@ if __name__ == "__main__":
 
     tree.delete(5)
     tree.delete(7)
+    tree.delete(2)
 
-    s = tree.p()
+    tree.for_each(print)
 
     print(s)
