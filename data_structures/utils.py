@@ -7,7 +7,7 @@ Comparator = Callable[[T, T], int]
 default_comparator = lambda x, y: -1 if x < y else 1 if x > y else 0
 
 
-def _bisect(
+def bisect(
     arr: List[T],
     x: T,
     comparator: Comparator = default_comparator,
@@ -40,7 +40,7 @@ def bisect_left(
     comparator: Comparator = default_comparator,
     negate_found: bool = True,
 ) -> int:
-    return _bisect(arr, x, comparator, True, negate_found)
+    return bisect(arr, x, comparator, True, negate_found)
 
 
 def bisect_right(
@@ -49,7 +49,7 @@ def bisect_right(
     comparator: Comparator = default_comparator,
     negate_found: bool = True,
 ) -> int:
-    return _bisect(arr, x, comparator, False, negate_found)
+    return bisect(arr, x, comparator, False, negate_found)
 
 
 if __name__ == "__main__":
