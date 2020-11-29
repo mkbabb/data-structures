@@ -52,6 +52,20 @@ class Node(Generic[T]):
     def has_children(self) -> bool:
         return len(self.children) > 0
 
+    def get_child(self, ix: int) -> Optional["Node[T]"]:
+        if self.parent is not None:
+            if ix >= 0 and ix < len(self.parent.children):
+                return self.parent.children[ix]
+        return None
+
+    def siblings(
+        self, parent_ix: int
+    ) -> Tuple[Optional["Node[T]"], Optional["Node[T]"]]:
+        left_ix = parent_ix - 1
+        right_ix = parent_ix + 1
+
+        return self.get_child(left_ix), self.get_child(right_ix)
+
     def split(self) -> Tuple[T, "Node[T]"]:
         split_ix = self.tree_order // 2 + 1
 
@@ -70,19 +84,54 @@ class Node(Generic[T]):
 
         return self.values.pop(), right_node
 
-    def get_child(self, ix: int) -> Optional["Node[T]"]:
-        if self.parent is not None:
-            if ix >= 0 and ix < len(self.parent.children):
-                return self.parent.children[ix]
-        return None
+    def rotate(
+        self,
+        parent_value_ix: int,
+        adj_node: "Node[T]",
+        go_left: bool,
+        rotate_children: bool = True,
+    ) -> None:
+        parent = self.parent
+        new_root = adj_node.values.pop() if go_left else adj_node.values.pop(0)
 
-    def siblings(
-        self, parent_ix: int
-    ) -> Tuple[Optional["Node[T]"], Optional["Node[T]"]]:
-        left_ix = parent_ix - 1
-        right_ix = parent_ix + 1
+        new_sibling = parent.values[parent_value_ix]
+        parent.values[parent_value_ix] = new_root
 
-        return self.get_child(left_ix), self.get_child(right_ix)
+        if rotate_children:
+            if go_left:
+                self.values.insert(0, new_sibling)
+            else:
+                self.values.append(new_sibling)
+
+            if adj_node.has_children():
+                child = adj_node.children.pop() if go_left else adj_node.children.pop(0)
+                child.parent = self
+                if go_left:
+                    self.children.insert(0, child)
+                else:
+                    self.children.append(child)
+
+    def transfer(
+        self, parent_value_ix: int, adj_node: "Node[T]", go_left: bool
+    ) -> None:
+        self.rotate(
+            parent_value_ix=parent_value_ix,
+            adj_node=adj_node,
+            go_left=go_left,
+        )
+
+    def merge(
+        self, child_ix: int, parent_value_ix: int, adj_node: "Node[T]", go_left: bool
+    ) -> None:
+        self.values.append(None)
+
+        adj_node.rotate(
+            parent_value_ix=parent_value_ix,
+            adj_node=self,
+            go_left=not go_left,
+        )
+        self.parent.values.pop(parent_value_ix)
+        self.parent.children.pop(child_ix)
 
 
 class BTree(Generic[T]):
@@ -94,7 +143,7 @@ class BTree(Generic[T]):
     def _bisect(self, arr: List[T], x: T, negate_found: bool = False) -> int:
         return bisect_left(arr, x, self.comparator, negate_found)
 
-    def _find(self, input_value: T, node: Node[T]) -> Tuple[int, Node[T]]:
+    def find(self, input_value: T) -> Tuple[int, Node[T]]:
         def recurse(node: Node[T]) -> Tuple[int, Node[T]]:
             ix = self._bisect(node.values, input_value, True)
 
@@ -107,10 +156,7 @@ class BTree(Generic[T]):
             else:
                 return ix, node
 
-        return recurse(node)
-
-    def find(self, input_value: T) -> Tuple[int, Node[T]]:
-        return self._find(input_value, self.root)
+        return recurse(self.root)
 
     @staticmethod
     def _successor(ix: int, node: Node[T]) -> Node[T]:
@@ -121,34 +167,6 @@ class BTree(Generic[T]):
             while not child.is_leaf():
                 child = child.children[0]
             return child
-
-    @staticmethod
-    def _rotate(
-        parent_value_ix: int,
-        node: Node[T],
-        adj_node: Node[T],
-        go_left: bool,
-        rotate_children: bool = True,
-    ) -> None:
-        parent = node.parent
-        new_root = adj_node.values.pop() if go_left else adj_node.values.pop(0)
-
-        new_sibling = parent.values[parent_value_ix]
-        parent.values[parent_value_ix] = new_root
-
-        if rotate_children:
-            if go_left:
-                node.values.insert(0, new_sibling)
-            else:
-                node.values.append(new_sibling)
-
-            if adj_node.has_children():
-                child = adj_node.children.pop() if go_left else adj_node.children.pop(0)
-                child.parent = node
-                if go_left:
-                    node.children.insert(0, child)
-                else:
-                    node.children.append(child)
 
     @staticmethod
     def _get_order(node: Optional[Node[T]]) -> int:
@@ -172,30 +190,17 @@ class BTree(Generic[T]):
             parent_value_ix = child_ix - 1 if go_left else child_ix
             adj_node = left_node if go_left else right_node
 
-            def transfer() -> None:
-                BTree._rotate(
+            if left_order > 2 or right_order > 2:
+                node.transfer(
+                    parent_value_ix=parent_value_ix, adj_node=adj_node, go_left=go_left
+                )
+            elif left_order <= 2 or right_order <= 2:
+                node.merge(
+                    child_ix=child_ix,
                     parent_value_ix=parent_value_ix,
-                    node=node,
                     adj_node=adj_node,
                     go_left=go_left,
                 )
-
-            def merge() -> None:
-                node.values.append(None)
-
-                BTree._rotate(
-                    parent_value_ix=parent_value_ix,
-                    node=adj_node,
-                    adj_node=node,
-                    go_left=not go_left,
-                )
-                parent.values.pop(parent_value_ix)
-                parent.children.pop(child_ix)
-
-            if left_order > 2 or right_order > 2:
-                transfer()
-            elif left_order <= 2 or right_order <= 2:
-                merge()
                 if parent.order() == 1:
                     grandparent = parent.parent
                     parent_ix = (
@@ -223,7 +228,6 @@ class BTree(Generic[T]):
                 child_ix = self._bisect(successor.parent.values, value)
 
                 node.values[value_ix] = value
-
                 return child_ix, successor, successor.values.pop(0)
 
         child_ix, node, value = get_successor_ix()
@@ -234,7 +238,7 @@ class BTree(Generic[T]):
         else:
             return value
 
-    def _split_insert(self, node: Node[T]):
+    def _split_insert(self, node: Node[T]) -> Node[T]:
         split_value, right_node = node.split()
 
         parent = node.parent
@@ -252,14 +256,18 @@ class BTree(Generic[T]):
             )
 
         if parent.is_full():
-            self._split_insert(parent)
+            return self._split_insert(parent)
 
-    def _insert(self, input_value: T) -> None:
+        return node
+
+    def _insert(self, input_value: T) -> Node[T]:
         value_ix, node = self.find(input_value)
         node.values.insert(value_ix, input_value)
 
         if node.is_full():
-            self._split_insert(node)
+            return self._split_insert(node)
+        else:
+            return node
 
     def insert(self, *input_values: T) -> None:
         for input_value in input_values:
