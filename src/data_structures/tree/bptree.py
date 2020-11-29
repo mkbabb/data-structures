@@ -20,11 +20,13 @@ class BPTreeNode(Node[T]):
         self.previous = None
 
     def split(self) -> Tuple[T, "Node[T]"]:
-        value_ix = int(math.floor((self.tree_order + 1) / 2))
+        value_ix = int(math.floor(self.tree_order / 2))
         child_ix = int(math.ceil((self.tree_order + 1) / 2))
 
         right_children = self.children[child_ix:]
         self.children = self.children[:child_ix]
+
+        # split_value = self.values[value_ix]
 
         right_values = self.values[value_ix:]
         self.values = self.values[:value_ix]

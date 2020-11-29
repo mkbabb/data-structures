@@ -47,6 +47,12 @@ class Node(Generic[T]):
     def is_full(self) -> bool:
         return len(self.values) >= self.tree_order
 
+    def min_order(self) -> int:
+        return self.tree_order // 2
+
+    def is_min_order(self) -> bool:
+        return len(self.values) < self.min_order() and not self.is_root()
+
     def is_empty(self) -> bool:
         return len(self.values) == 0
 
@@ -194,8 +200,8 @@ class BTree(Generic[T]):
             return child
 
     @staticmethod
-    def _get_order(node: Optional[Node[T]]) -> int:
-        return -1 if node is None else node.order()
+    def _is_min_order(node: Optional[Node[T]]) -> int:
+        return False if node is None else node.is_min_order()
 
     def _delete_order_1(self, child_ix: int, node: Node[T]):
         if node.is_root():
@@ -205,21 +211,21 @@ class BTree(Generic[T]):
             parent = node.parent
 
             left_node, right_node = node.siblings(child_ix)
-            left_order, right_order = (
-                BTree._get_order(left_node),
-                BTree._get_order(right_node),
+            left_is_min, right_is_min = (
+                BTree._is_min_order(left_node),
+                BTree._is_min_order(right_node),
             )
 
-            go_left = left_order >= 2 and right_order <= 2
+            go_left = left_is_min and not right_is_min
 
             parent_value_ix = child_ix - 1 if go_left else child_ix
             adj_node = left_node if go_left else right_node
 
-            if left_order > 2 or right_order > 2:
+            if left_is_min or right_is_min:
                 node.transfer(
                     parent_value_ix=parent_value_ix, adj_node=adj_node, go_left=go_left
                 )
-            elif left_order <= 2 or right_order <= 2:
+            elif not (left_is_min or right_is_min):
                 node.merge(
                     child_ix=child_ix,
                     parent_value_ix=parent_value_ix,
@@ -240,11 +246,7 @@ class BTree(Generic[T]):
 
         def get_successor_ix() -> Tuple[int, Node[T], T]:
             if node.is_leaf():
-                child_ix = (
-                    value_ix
-                    if node.is_root() or node.order() > 2
-                    else self._get_node_ix(node.parent, input_value)
-                )
+                child_ix = self._get_node_ix(node.parent, input_value)
                 return child_ix, node, node.values.pop(value_ix)
             else:
                 successor = self._successor(value_ix, node)
@@ -257,7 +259,7 @@ class BTree(Generic[T]):
 
         child_ix, node, value = get_successor_ix()
 
-        if node.order() == 1 and not node.is_root():
+        if node.is_min_order():
             self._delete_order_1(child_ix, node)
             return value
         else:
