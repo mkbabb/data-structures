@@ -1,6 +1,7 @@
 from typing import *
 
 from ..utils import Comparator, bisect, default_comparator
+import math
 
 T = TypeVar("T")
 
@@ -67,13 +68,16 @@ class Node(Generic[T]):
         return self.get_child(left_ix), self.get_child(right_ix)
 
     def split(self) -> Tuple[T, "Node[T]"]:
-        split_ix = self.tree_order // 2 + 1
+        value_ix = int(math.floor(self.tree_order / 2))
+        child_ix = int(math.ceil((self.tree_order + 1) / 2))
 
-        right_children = self.children[split_ix:]
-        self.children = self.children[:split_ix]
+        right_children = self.children[child_ix:]
+        self.children = self.children[:child_ix]
 
-        right_values = self.values[split_ix:]
-        self.values = self.values[:split_ix]
+        split_value = self.values[value_ix]
+
+        right_values = self.values[value_ix + 1 :]
+        self.values = self.values[:value_ix]
 
         right_node = self.__class__(
             tree_order=self.tree_order,
@@ -82,7 +86,7 @@ class Node(Generic[T]):
             parent=self.parent,
         )
 
-        return self.values.pop(), right_node
+        return split_value, right_node
 
     def rotate(
         self,
