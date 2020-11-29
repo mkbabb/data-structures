@@ -2,23 +2,85 @@ import unittest
 from typing import *
 import random
 
-from data_structures import BTree, Node, Comparator, T, default_comparator
+from src.data_structures.tree.btree import BTree, Node
+from src.data_structures.utils import default_comparator
 
+
+T = TypeVar("T")
 
 TEST_ORDER = 4
 
 random.seed(1)
 
 
-class BTreeTest(unittest.TestCase):
+class TreeTest(unittest.TestCase):
+    def assertSorted(self, iterable: Iterable, comparator=default_comparator) -> None:
+        one = iter(iterable)
+        two = iter(iterable)
+
+        next(two)
+
+        for i, j in zip(one, two):
+            self.assertTrue(comparator(i, j) < 0)
+
+
+class BTreeTestBase(TreeTest):
+    def create_tree(self, **kwargs: Any) -> BTree[T]:
+        return BTree(**kwargs)
+
+    def create_node(self, **kwargs: Any) -> Node[T]:
+        return Node(**kwargs)
+
+    def assertTreeSorted(self, tree: BTree):
+        values = []
+        tree.for_each(lambda x: values.append(x))
+
+        self.assertSorted(values, tree.comparator)
+
+    def test_unsorted_1(self):
+        tree = self.create_tree(order=TEST_ORDER)
+        tree.insert(list("qwertyuiopasdfghjklzxcvbnm"))
+        self.assertTreeSorted(tree)
+
+    def test_unsorted_2(self):
+        tree = self.create_tree(order=TEST_ORDER)
+        n = 100
+
+        nums = list(range(n))
+        random.shuffle(nums)
+
+        tree.insert(*nums)
+
+        self.assertTreeSorted(tree)
+
+    def test_delete_transfer(self):
+        pass
+
+    def test_insert_delete_many(self):
+        n = 100
+        nums = list(range(n))
+        random.shuffle(nums)
+
+        for order in range(TEST_ORDER, 12):
+            tree = self.create_tree(order=order)
+            tree.insert(*nums)
+
+            random.shuffle(nums)
+
+            for num in nums:
+                self.assertTreeSorted(tree)
+                tree.delete(num)
+
+
+class BTreeTest(BTreeTestBase):
     def setup_rotate(self) -> List[Node]:
-        parent = Node(tree_order=TEST_ORDER)
+        parent = self.create_node(tree_order=TEST_ORDER)
         parent.values = [10]
 
         child_values = [0, 11]
 
         children = [
-            Node(
+            self.create_node(
                 tree_order=TEST_ORDER,
                 children=[Node(tree_order=TEST_ORDER, values=[i])],
                 values=[i],
@@ -32,7 +94,7 @@ class BTreeTest(unittest.TestCase):
 
     def test_right_rotate(self) -> None:
         children = self.setup_rotate()
-        
+
         children[0].rotate(0, children[1], False)
 
         self.assertEqual(children[0].values, [0, 10])
@@ -50,23 +112,8 @@ class BTreeTest(unittest.TestCase):
         self.assertEqual(children[1].children[0].values, [0])
         self.assertEqual(children[1].children[1].values, [11])
 
-    def assertSorted(self, iterable: Iterable, comparator=default_comparator):
-        one = iter(iterable)
-        two = iter(iterable)
-
-        next(two)
-
-        for i, j in zip(one, two):
-            self.assertTrue(comparator(i, j) < 0)
-
-    def assertTreeSorted(self, tree: BTree):
-        values = []
-        tree.for_each(lambda x: values.append(x))
-
-        self.assertSorted(values, tree.comparator)
-
     def test_insert_new_root(self):
-        tree = BTree(order=TEST_ORDER)
+        tree = self.create_tree(order=TEST_ORDER)
 
         tree.insert(1, 2, 3, 4)
 
@@ -77,22 +124,8 @@ class BTreeTest(unittest.TestCase):
 
         self.assertTreeSorted(tree)
 
-    def test_unsorted_1(self):
-        tree = BTree(order=TEST_ORDER)
-        tree.insert(list("qwertyuiopasdfghjklzxcvbnm"))
-        self.assertTreeSorted(tree)
-
-    def test_unsorted_2(self):
-        tree = BTree(order=TEST_ORDER)
-        n = 1000
-        nums = set(random.randint(0, n) for _ in range(n))
-
-        tree.insert(*nums)
-
-        self.assertTreeSorted(tree)
-
     def test_delete_merge_1(self):
-        tree = BTree(order=TEST_ORDER)
+        tree = self.create_tree(order=TEST_ORDER)
 
         tree.insert(1, 2, 3, 4)
         tree.delete(1)
@@ -103,7 +136,7 @@ class BTreeTest(unittest.TestCase):
         self.assertTreeSorted(tree)
 
     def test_delete_merge_2(self):
-        tree = BTree(order=TEST_ORDER)
+        tree = self.create_tree(order=TEST_ORDER)
 
         tree.insert(*range(1, 14))
         tree.delete(8)
@@ -121,24 +154,6 @@ class BTreeTest(unittest.TestCase):
 
         self.assertTreeSorted(tree)
 
-    def test_delete_transfer(self):
-        pass
-
-    def test_insert_delete_many(self):
-        n = 1000
-        nums = list(range(n))
-        random.shuffle(nums)
-
-        for order in range(TEST_ORDER, 12):
-            tree = BTree(order=order)
-            tree.insert(*nums)
-
-            random.shuffle(nums)
-
-            for num in nums:
-                self.assertTreeSorted(tree)
-                tree.delete(num)
-
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(BTreeTest())
