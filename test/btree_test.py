@@ -32,7 +32,8 @@ class BTreeTest(unittest.TestCase):
 
     def test_right_rotate(self) -> None:
         children = self.setup_rotate()
-        BTree._rotate(0, children[0], children[1], False)
+        
+        children[0].rotate(0, children[1], False)
 
         self.assertEqual(children[0].values, [0, 10])
 
@@ -42,7 +43,7 @@ class BTreeTest(unittest.TestCase):
     def test_left_rotate(self) -> None:
         children = self.setup_rotate()
 
-        BTree._rotate(0, children[1], children[0], True)
+        children[1].rotate(0, children[0], True)
 
         self.assertEqual(children[1].values, [10, 11])
 
