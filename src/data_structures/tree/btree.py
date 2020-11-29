@@ -15,6 +15,7 @@ class Node(Generic[T]):
         parent: Optional["Node[T]"] = None,
     ) -> None:
         self.tree_order = tree_order
+        self.min_order = int(math.ceil(tree_order / 2))
 
         if children is None:
             children = []
@@ -47,11 +48,8 @@ class Node(Generic[T]):
     def is_full(self) -> bool:
         return len(self.values) >= self.tree_order
 
-    def min_order(self) -> int:
-        return self.tree_order // 2
-
     def is_min_order(self) -> bool:
-        return len(self.values) < self.min_order() and not self.is_root()
+        return len(self.values) < self.min_order and not self.is_root()
 
     def is_empty(self) -> bool:
         return len(self.values) == 0
@@ -134,6 +132,7 @@ class Node(Generic[T]):
             go_left=go_left,
             rotate_children=rotate_children,
         )
+        return adj_node
 
     def merge(
         self,
@@ -142,17 +141,19 @@ class Node(Generic[T]):
         adj_node: "Node[T]",
         go_left: bool,
         rotate_children: bool = True,
-    ) -> None:
-        self.values.append(None)
+    ) -> "Node[T]":
+        value = self.parent.values.pop(parent_value_ix)
 
-        adj_node.rotate(
-            parent_value_ix=parent_value_ix,
-            adj_node=self,
-            go_left=not go_left,
-            rotate_children=rotate_children,
-        )
-        self.parent.values.pop(parent_value_ix)
-        self.parent.children.pop(child_ix)
+        if go_left:
+            adj_node.values += [value] + self.values
+            adj_node.children += self.children
+            self.parent.children.pop(child_ix)
+            return adj_node
+        else:
+            self.values += [value] + adj_node.values
+            self.children += adj_node.children
+            self.parent.children.pop(child_ix + 1)
+            return self
 
 
 class BTree(Generic[T]):
@@ -209,33 +210,36 @@ class BTree(Generic[T]):
             self.root.parent = None
         else:
             parent = node.parent
-
             left_node, right_node = node.siblings(child_ix)
-            left_is_min, right_is_min = (
-                BTree._is_min_order(left_node),
-                BTree._is_min_order(right_node),
-            )
 
-            go_left = left_is_min and not right_is_min
-
-            parent_value_ix = child_ix - 1 if go_left else child_ix
-            adj_node = left_node if go_left else right_node
-
-            if left_is_min or right_is_min:
-                node.transfer(
-                    parent_value_ix=parent_value_ix, adj_node=adj_node, go_left=go_left
+            if left_node is not None and not left_node.is_min_order():
+                node = node.transfer(
+                    parent_value_ix=child_ix - 1, adj_node=left_node, go_left=True
                 )
-            elif not (left_is_min or right_is_min):
-                node.merge(
-                    child_ix=child_ix,
-                    parent_value_ix=parent_value_ix,
-                    adj_node=adj_node,
-                    go_left=go_left,
+            elif right_node is not None and not right_node.is_min_order():
+                node = node.transfer(
+                    parent_value_ix=child_ix, adj_node=right_node, go_left=False
                 )
+            else:
+                if left_node is not None:
+                    node = node.merge(
+                        child_ix=child_ix,
+                        parent_value_ix=child_ix - 1,
+                        adj_node=left_node,
+                        go_left=True,
+                    )
+                elif right_node is not None:
+                    node = node.merge(
+                        child_ix=child_ix,
+                        parent_value_ix=child_ix,
+                        adj_node=right_node,
+                        go_left=False,
+                    )
+
                 if parent.order() == 1:
                     grandparent = parent.parent
                     parent_ix = (
-                        self._get_node_ix(grandparent, adj_node.values[0])
+                        self._get_node_ix(grandparent, node.values[0])
                         if grandparent is not None
                         else 0
                     )
@@ -251,7 +255,6 @@ class BTree(Generic[T]):
             else:
                 successor = self._successor(value_ix, node)
                 value = successor.values[0]
-
                 child_ix = self._get_node_ix(successor.parent, value)
 
                 node.values[value_ix] = value

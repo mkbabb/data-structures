@@ -157,13 +157,50 @@ class BTreeTest(BTreeTestBase):
 
     #     self.assertTreeSorted(tree)
 
-    def test_toast(self):
-        tree = self.create_tree(order=5)
-        # tree.insert(*range(10))
+    def test_merge_left(self):
+        tree = self.create_tree(order=7)
 
-        tree.insert(1, 2, 3, 4, 5)
+        tree.insert(1, 2, 3, 4, 5, 6, 7)
 
-        tree.delete(4)
+        tree.delete(3)
+
+        self.assertEqual(tree.root.values, [1, 2, 4, 5, 6, 7])
+
+    def test_merge_right(self):
+        tree = self.create_tree(order=7)
+
+        tree.insert(1, 2, 3, 4, 5, 6, 7)
+
+        tree.delete(5)
+
+        self.assertEqual(tree.root.values, [1, 2, 3, 4, 6, 7])
+
+    def test_merge_transfer_left(self):
+        tree = self.create_tree(order=7)
+
+        tree.insert(1, 2, 3, 4, 5, 6, 7, 8)
+        tree.insert(0)
+
+        tree.delete(3)
+        tree.delete(2)
+
+        self.assertEqual(tree.root.values, [5])
+        self.assertEqual(tree.root.children[0].values, [0, 1, 4])
+        self.assertEqual(tree.root.children[1].values, [6, 7, 8])
+
+    def test_merge_transfer_right(self):
+        tree = self.create_tree(order=7)
+
+        tree.insert(1, 2, 3, 4, 5, 6, 7, 8)
+        tree.insert(0)
+
+        tree.delete(5)
+        tree.delete(6)
+
+        self.assertEqual(tree.root.values, [3])
+        self.assertEqual(tree.root.children[0].values, [0, 1, 2])
+        self.assertEqual(tree.root.children[1].values, [4, 7, 8])
+
 
 
 if __name__ == "__main__":
