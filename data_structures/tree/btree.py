@@ -1,6 +1,6 @@
 from typing import *
 
-from ..utils import Comparator, bisect_left, default_comparator
+from ..utils import Comparator, bisect, default_comparator
 
 T = TypeVar("T")
 
@@ -75,7 +75,7 @@ class Node(Generic[T]):
         right_values = self.values[split_ix:]
         self.values = self.values[:split_ix]
 
-        right_node = Node(
+        right_node = self.__class__(
             tree_order=self.tree_order,
             children=right_children,
             values=right_values,
@@ -138,14 +138,19 @@ class BTree(Generic[T]):
     def __init__(self, order: int, comparator: Comparator = default_comparator):
         self.order = order
         self.comparator = comparator
-        self.root: Node[T] = Node(tree_order=order)
+        self.root: Node[T] = self.create_node(tree_order=order)
 
-    def _bisect(self, arr: List[T], x: T, negate_found: bool = False) -> int:
-        return bisect_left(arr, x, self.comparator, negate_found)
+    def create_node(self, **kwargs: Any) -> Node[T]:
+        return Node(**kwargs)
+
+    def _bisect(
+        self, arr: List[T], x: T, left: bool = True, negate_found: bool = False
+    ) -> int:
+        return bisect(arr, x, self.comparator, left, negate_found)
 
     def find(self, input_value: T) -> Tuple[int, Node[T]]:
         def recurse(node: Node[T]) -> Tuple[int, Node[T]]:
-            ix = self._bisect(node.values, input_value, True)
+            ix = self._bisect(node.values, input_value, negate_found=True)
 
             if ix < 0:
                 ix = -1 * (ix + 1)
@@ -251,7 +256,7 @@ class BTree(Generic[T]):
         else:
             children = [node, right_node]
             values = [split_value]
-            self.root = parent = Node(
+            self.root = parent = self.create_node(
                 tree_order=self.order, children=children, values=values
             )
 
