@@ -30,10 +30,6 @@ class Node(Generic[T]):
         for child in children:
             child.parent = self
 
-    def insert_child(self, ix: int, child: "Node[T]") -> None:
-        self.children.insert(ix, child)
-        child.parent = self
-
     def __repr__(self) -> str:
         return f"{self.values}"
 
@@ -47,7 +43,7 @@ class Node(Generic[T]):
         return not (self.is_root() or self.is_leaf())
 
     def is_root(self) -> bool:
-        return self.parent is None or self.parent.parent is None
+        return self.parent is None
 
     def is_full(self) -> bool:
         return len(self.values) >= self.tree_order
@@ -157,7 +153,6 @@ class BTree(Generic[T]):
         self.order = order
         self.comparator = comparator
         self.root: Node[T] = self.create_node(tree_order=order)
-        self.root.parent = self.create_node(tree_order=order)
 
     def create_node(self, **kwargs: Any) -> Node[T]:
         return Node(**kwargs)
@@ -197,10 +192,10 @@ class BTree(Generic[T]):
                 child = child.children[0]
             return child
 
-    def _delete_order_1(self, child_ix: int, node: Node[T]):
+    def _delete_min_order(self, child_ix: int, node: Node[T]):
         if node.is_root():
-            node.children[0].parent = node.parent
             self.root = node.children[0]
+            self.root.parent = None
         else:
             parent = node.parent
             left_node, right_node = node.siblings(child_ix)
@@ -240,7 +235,7 @@ class BTree(Generic[T]):
                         if grandparent is not None
                         else 0
                     )
-                    self._delete_order_1(parent_ix, parent)
+                    self._delete_min_order(parent_ix, parent)
 
     def delete(self, input_value: T):
         value_ix, node = self.find(input_value)
@@ -264,7 +259,7 @@ class BTree(Generic[T]):
         child_ix, node, value = get_successor_ix()
 
         if node.is_min_leaf_order() and not node.is_root():
-            self._delete_order_1(child_ix, node)
+            self._delete_min_order(child_ix, node)
             return value
         else:
             return value
@@ -276,8 +271,7 @@ class BTree(Generic[T]):
 
         if not node.is_root():
             child_ix = self._get_node_ix(parent, split_value)
-
-            parent.insert_child(child_ix + 1, right_node)
+            parent.children.insert(child_ix + 1, right_node)
             parent.values.insert(child_ix, split_value)
         else:
             children = [node, right_node]
