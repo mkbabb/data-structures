@@ -1,6 +1,6 @@
 from typing import *
 
-from ..utils import Comparator, bisect, default_comparator
+from ..utils.utils import Comparator, bisect, default_comparator
 import math
 
 T = TypeVar("T")
@@ -17,17 +17,18 @@ class Node(Generic[T]):
         self.tree_order = tree_order
         self.min_order = int(math.ceil(tree_order / 2))
 
+        self._parent = parent
+
         if children is None:
             children = []
         if values is None:
             values = []
 
+        self.values = values
         self.children = children
+
         for child in children:
             child.parent = self
-
-        self.values = values
-        self.parent = parent
 
     def insert_child(self, ix: int, child: "Node[T]") -> None:
         self.children.insert(ix, child)
@@ -37,10 +38,13 @@ class Node(Generic[T]):
         return f"{self.values}"
 
     def order(self) -> int:
-        return len(self.values) + 1
+        return len(self.values)
 
     def is_leaf(self) -> bool:
         return len(self.children) == 0
+
+    def is_internal(self) -> bool:
+        return not (self.is_root() or self.is_leaf())
 
     def is_root(self) -> bool:
         return self.parent is None
@@ -48,14 +52,31 @@ class Node(Generic[T]):
     def is_full(self) -> bool:
         return len(self.values) >= self.tree_order
 
-    def is_min_order(self) -> bool:
-        return len(self.values) < self.min_order and not self.is_root()
+    def is_min_internal_order(self) -> bool:
+        return self.order() < self.min_order
 
-    def is_empty(self) -> bool:
-        return len(self.values) == 0
+    def is_min_leaf_order(self) -> bool:
+        return self.order() < self.min_order - 1
 
     def has_children(self) -> bool:
         return len(self.children) > 0
+
+    @property
+    def parent(self) -> Optional["Node[T]"]:
+        return self._parent
+
+    @parent.setter
+    def parent(self, parent: "Node[T]") -> None:
+        if not self.is_root():
+            for child in self.children:
+                child._parent._parent = parent
+        self._parent = parent
+
+    def inherit_from(self, node: "Node[T]") -> "Node[T]":
+        self.values = node.values
+        self.children = node.children
+        self.parent = node.parent
+        return self
 
     def get_child(self, ix: int) -> Optional["Node[T]"]:
         if self.parent is not None:
@@ -132,15 +153,10 @@ class Node(Generic[T]):
             go_left=go_left,
             rotate_children=rotate_children,
         )
-        return adj_node
+        return self
 
     def merge(
-        self,
-        child_ix: int,
-        parent_value_ix: int,
-        adj_node: "Node[T]",
-        go_left: bool,
-        rotate_children: bool = True,
+        self, child_ix: int, parent_value_ix: int, adj_node: "Node[T]", go_left: bool
     ) -> "Node[T]":
         value = self.parent.values.pop(parent_value_ix)
 
@@ -148,7 +164,7 @@ class Node(Generic[T]):
             adj_node.values += [value] + self.values
             adj_node.children += self.children
             self.parent.children.pop(child_ix)
-            return adj_node
+            return self.inherit_from(adj_node)
         else:
             self.values += [value] + adj_node.values
             self.children += adj_node.children
@@ -200,43 +216,43 @@ class BTree(Generic[T]):
                 child = child.children[0]
             return child
 
-    @staticmethod
-    def _is_min_order(node: Optional[Node[T]]) -> int:
-        return False if node is None else node.is_min_order()
-
     def _delete_order_1(self, child_ix: int, node: Node[T]):
         if node.is_root():
-            self.root = node.children[0]
+            self.root = node = node.children[0]
             self.root.parent = None
         else:
             parent = node.parent
             left_node, right_node = node.siblings(child_ix)
 
-            if left_node is not None and not left_node.is_min_order():
-                node = node.transfer(
+            if left_node is not None and not left_node.is_min_internal_order():
+                node.transfer(
                     parent_value_ix=child_ix - 1, adj_node=left_node, go_left=True
                 )
-            elif right_node is not None and not right_node.is_min_order():
-                node = node.transfer(
+            elif right_node is not None and not right_node.is_min_internal_order():
+                node.transfer(
                     parent_value_ix=child_ix, adj_node=right_node, go_left=False
                 )
             else:
                 if left_node is not None:
-                    node = node.merge(
+                    node.merge(
                         child_ix=child_ix,
                         parent_value_ix=child_ix - 1,
                         adj_node=left_node,
                         go_left=True,
                     )
                 elif right_node is not None:
-                    node = node.merge(
+                    node.merge(
                         child_ix=child_ix,
                         parent_value_ix=child_ix,
                         adj_node=right_node,
                         go_left=False,
                     )
+                for child in node.children:
+                    child.parent = node
 
-                if parent.order() == 1:
+                if parent.order() == 0 or (
+                    not parent.is_root() and parent.is_min_leaf_order()
+                ):
                     grandparent = parent.parent
                     parent_ix = (
                         self._get_node_ix(grandparent, node.values[0])
@@ -250,7 +266,11 @@ class BTree(Generic[T]):
 
         def get_successor_ix() -> Tuple[int, Node[T], T]:
             if node.is_leaf():
-                child_ix = self._get_node_ix(node.parent, input_value)
+                child_ix = (
+                    self._get_node_ix(node.parent, input_value)
+                    if not node.is_root()
+                    else 0
+                )
                 return child_ix, node, node.values.pop(value_ix)
             else:
                 successor = self._successor(value_ix, node)
@@ -262,7 +282,7 @@ class BTree(Generic[T]):
 
         child_ix, node, value = get_successor_ix()
 
-        if node.is_min_order():
+        if node.is_min_leaf_order() and not node.is_root():
             self._delete_order_1(child_ix, node)
             return value
         else:
@@ -337,13 +357,3 @@ class BTree(Generic[T]):
             return s
 
         return recurse(self.root, "")
-
-
-if __name__ == "__main__":
-    tree: BTree[int] = BTree(4)
-
-    tree.insert(*range(1, 22))
-
-    s = tree.p()
-
-    print(s)
