@@ -1,25 +1,25 @@
 from typing import *
 
 from ..utils import Comparator, bisect, default_comparator
-from .btree import Node, BTree
+from .btree import BTreeNode, BTree
 import math
 
 T = TypeVar("T")
 
 
-class BPTreeNode(Node[T]):
+class BPTreeNode(BTreeNode[T]):
     def __init__(
         self,
         tree_order: int,
-        children: Optional[List["Node[T]"]] = None,
+        children: Optional[List["BTreeNode[T]"]] = None,
         values: Optional[List[T]] = None,
-        parent: Optional["Node[T]"] = None,
+        parent: Optional["BTreeNode[T]"] = None,
     ) -> None:
         super().__init__(tree_order, children, values, parent)
         self.next = None
         self.previous = None
 
-    def split(self) -> Tuple[T, "Node[T]"]:
+    def split(self) -> Tuple[T, "BTreeNode[T]"]:
         value_ix = int(math.floor(self.tree_order / 2))
         child_ix = int(math.ceil((self.tree_order + 1) / 2))
 
@@ -46,46 +46,25 @@ class BPTreeNode(Node[T]):
 
         return split_value, right_node
 
-    def merge(
-        self, child_ix: int, parent_value_ix: int, adj_node: "Node[T]", go_left: bool
-    ) -> None:
-        self.values.append(None)
-
-        adj_node.rotate(
-            parent_value_ix=parent_value_ix,
-            adj_node=self,
-            go_left=not go_left,
-            rotate_children=not self.is_leaf(),
-        )
-
-        self.parent.values.pop(parent_value_ix)
-        self.parent.children.pop(child_ix)
-
-        if self.is_leaf():
-            if go_left:
-                adj_node.next = self.next
-                if self.next is not None:
-                    self.next.previous = adj_node
-            else:
-                adj_node.previous = self.previous
-                if self.previous is not None:
-                    self.previous.next = adj_node
-
 
 class BPTree(BTree[T]):
     def __init__(self, order: int, comparator: Comparator = default_comparator):
         super().__init__(order, comparator)
 
-    def create_node(self, **kwargs: Any) -> Node[T]:
+    def create_node(self, **kwargs: Any) -> BTreeNode[T]:
         return BPTreeNode(**kwargs)
 
     def _get_node_ix(
-        self, node: Node[T], value: T, left: bool = False, negate_found: bool = False
+        self,
+        node: BTreeNode[T],
+        value: T,
+        left: bool = False,
+        negate_found: bool = False,
     ):
         return self._bisect(node.values, value, left=left, negate_found=negate_found)
 
-    def find(self, input_value: T) -> Tuple[int, Node[T]]:
-        def recurse(node: Node[T]):
+    def find(self, input_value: T) -> Tuple[int, BTreeNode[T]]:
+        def recurse(node: BTreeNode[T]):
             ix = self._get_node_ix(
                 node, input_value, left=node.is_leaf(), negate_found=False
             )

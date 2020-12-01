@@ -2,7 +2,7 @@ import unittest
 from typing import *
 import random
 
-from src.data_structures.tree.btree import BTree, Node
+from src.data_structures.tree.btree import BTree, BTreeNode
 from src.data_structures.utils.utils import default_comparator
 
 
@@ -28,8 +28,8 @@ class BTreeTestBase(TreeTest):
     def create_tree(self, **kwargs: Any) -> BTree[T]:
         return BTree(**kwargs)
 
-    def create_node(self, **kwargs: Any) -> Node[T]:
-        return Node(**kwargs)
+    def create_node(self, **kwargs: Any) -> BTreeNode[T]:
+        return BTreeNode(**kwargs)
 
     def assertTreeSorted(self, tree: BTree):
         values = []
@@ -76,7 +76,7 @@ class BTreeTestBase(TreeTest):
 
 
 class BTreeTest(BTreeTestBase):
-    def setup_rotate(self) -> List[Node]:
+    def setup_rotate(self) -> List[BTreeNode]:
         parent = self.create_node(tree_order=TEST_ORDER)
         parent.values = [10]
 
@@ -85,7 +85,7 @@ class BTreeTest(BTreeTestBase):
         children = [
             self.create_node(
                 tree_order=TEST_ORDER,
-                children=[Node(tree_order=TEST_ORDER, values=[i])],
+                children=[BTreeNode(tree_order=TEST_ORDER, values=[i])],
                 values=[i],
                 parent=parent,
             )

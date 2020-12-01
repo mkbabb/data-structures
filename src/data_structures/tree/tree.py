@@ -123,7 +123,8 @@ class Tree(Generic[T]):
 
         return recurse(self.root)
 
-    def successor(self, ix: int, node: TreeNode[T]) -> TreeNode[T]:
+    @staticmethod
+    def successor(ix: int, node: TreeNode[T]) -> TreeNode[T]:
         if node.is_leaf():
             return node
         else:
@@ -141,7 +142,7 @@ class Tree(Generic[T]):
             )
             return child_ix, node, node.values.pop(value_ix)
         else:
-            successor = self._successor(value_ix, node)
+            successor = Tree.successor(value_ix, node)
             value = successor.values[0]
             child_ix = self._get_node_ix(successor.parent, value)
 
