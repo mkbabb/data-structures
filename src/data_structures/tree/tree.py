@@ -177,7 +177,6 @@ class Tree(Generic[T]):
                     recurse(child)
                     if n < len(node.values):
                         yield node.values[n]
-
             else:
                 for value in node.values:
                     yield value
@@ -188,7 +187,7 @@ class Tree(Generic[T]):
         for value in self.in_order():
             func(value)
 
-    def _print(self):
+    def _print(self) -> str:
         def recurse(node: TreeNode[T], s: str, depth: int = 0):
             if not node.is_leaf():
                 t_indent = ("|" + "----" * (depth + 1)) if depth > 0 else ""

@@ -3,6 +3,7 @@ from typing import *
 
 from ..utils.utils import Comparator, bisect, default_comparator
 from .tree import Tree, TreeNode
+from ..utils.optional import optional
 
 T = TypeVar("T")
 
@@ -94,35 +95,35 @@ class BTree(Tree[T]):
             self.root.parent = None
         else:
             parent = node.parent
-            left_node, right_node = node.siblings(child_ix)
+            left_node, right_node = map(optional, node.siblings(child_ix))
 
-            if left_node is not None and not left_node.is_min_internal_order():
+            if left_node.map(BTreeNode.is_min_internal_order).value_or(False):
                 node.transfer(
                     parent_value_ix=child_ix - 1,
-                    adj_node=left_node,
+                    adj_node=left_node.value,
                     go_left=True,
                     rotate_children=True,
                 )
-            elif right_node is not None and not right_node.is_min_internal_order():
+            elif right_node.map(BTreeNode.is_min_internal_order).value_or(False):
                 node.transfer(
                     parent_value_ix=child_ix,
-                    adj_node=right_node,
+                    adj_node=right_node.value,
                     go_left=False,
                     rotate_children=True,
                 )
             else:
-                if left_node is not None:
+                if left_node:
                     node.merge(
                         child_ix=child_ix,
                         parent_value_ix=child_ix - 1,
-                        adj_node=left_node,
+                        adj_node=left_node.value,
                         go_left=True,
                     )
-                elif right_node is not None:
+                elif right_node:
                     node.merge(
                         child_ix=child_ix,
                         parent_value_ix=child_ix,
-                        adj_node=right_node,
+                        adj_node=right_node.value,
                         go_left=False,
                     )
                 for child in node.children:
