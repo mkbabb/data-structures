@@ -17,7 +17,7 @@ class Node(Generic[T]):
         self.tree_order = tree_order
         self.min_order = int(math.ceil(tree_order / 2))
 
-        self._parent = parent
+        self.parent = parent
 
         if children is None:
             children = []
@@ -47,7 +47,7 @@ class Node(Generic[T]):
         return not (self.is_root() or self.is_leaf())
 
     def is_root(self) -> bool:
-        return self.parent is None
+        return self.parent is None or self.parent.parent is None
 
     def is_full(self) -> bool:
         return len(self.values) >= self.tree_order
@@ -57,26 +57,6 @@ class Node(Generic[T]):
 
     def is_min_leaf_order(self) -> bool:
         return self.order() < self.min_order - 1
-
-    def has_children(self) -> bool:
-        return len(self.children) > 0
-
-    @property
-    def parent(self) -> Optional["Node[T]"]:
-        return self._parent
-
-    @parent.setter
-    def parent(self, parent: "Node[T]") -> None:
-        if not self.is_root():
-            for child in self.children:
-                child._parent._parent = parent
-        self._parent = parent
-
-    def inherit_from(self, node: "Node[T]") -> "Node[T]":
-        self.values = node.values
-        self.children = node.children
-        self.parent = node.parent
-        return self
 
     def get_child(self, ix: int) -> Optional["Node[T]"]:
         if self.parent is not None:
@@ -132,7 +112,7 @@ class Node(Generic[T]):
             else:
                 self.values.append(new_sibling)
 
-            if adj_node.has_children():
+            if not adj_node.is_leaf():
                 child = adj_node.children.pop() if go_left else adj_node.children.pop(0)
                 child.parent = self
                 if go_left:
@@ -161,15 +141,15 @@ class Node(Generic[T]):
         value = self.parent.values.pop(parent_value_ix)
 
         if go_left:
-            adj_node.values += [value] + self.values
-            adj_node.children += self.children
-            self.parent.children.pop(child_ix)
-            return self.inherit_from(adj_node)
+            self.values = adj_node.values + [value] + self.values
+            self.children = adj_node.children + self.children
+            self.parent.children.pop(child_ix - 1)
         else:
             self.values += [value] + adj_node.values
             self.children += adj_node.children
             self.parent.children.pop(child_ix + 1)
-            return self
+
+        return self
 
 
 class BTree(Generic[T]):
@@ -177,6 +157,7 @@ class BTree(Generic[T]):
         self.order = order
         self.comparator = comparator
         self.root: Node[T] = self.create_node(tree_order=order)
+        self.root.parent = self.create_node(tree_order=order)
 
     def create_node(self, **kwargs: Any) -> Node[T]:
         return Node(**kwargs)
@@ -218,8 +199,8 @@ class BTree(Generic[T]):
 
     def _delete_order_1(self, child_ix: int, node: Node[T]):
         if node.is_root():
-            self.root = node = node.children[0]
-            self.root.parent = None
+            node.children[0].parent = node.parent
+            self.root = node.children[0]
         else:
             parent = node.parent
             left_node, right_node = node.siblings(child_ix)
@@ -293,7 +274,7 @@ class BTree(Generic[T]):
 
         parent = node.parent
 
-        if parent is not None:
+        if not node.is_root():
             child_ix = self._get_node_ix(parent, split_value)
 
             parent.insert_child(child_ix + 1, right_node)
@@ -302,7 +283,10 @@ class BTree(Generic[T]):
             children = [node, right_node]
             values = [split_value]
             self.root = parent = self.create_node(
-                tree_order=self.order, children=children, values=values
+                tree_order=self.order,
+                children=children,
+                values=values,
+                parent=parent,
             )
 
         if parent.is_full():
