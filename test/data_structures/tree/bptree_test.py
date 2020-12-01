@@ -19,4 +19,15 @@ class BPTreeTest(BTreeTestBase):
 
 
 if __name__ == "__main__":
-    unittest.main(BPTreeTest())
+    # unittest.main(BPTreeTest())
+    tree = BPTree(4)
+    tree.insert(*range(1, 20))
+    tree.for_each(print)
+
+    tree.delete(10)
+    tree.delete(11)
+    tree.delete(12)
+    tree.delete(13)
+    tree.delete(14)
+    
+    tree.for_each(print)

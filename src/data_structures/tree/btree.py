@@ -61,7 +61,11 @@ class BTreeNode(TreeNode[T]):
         return self
 
     def merge(
-        self, child_ix: int, parent_value_ix: int, adj_node: "BTreeNode[T]", go_left: bool
+        self,
+        child_ix: int,
+        parent_value_ix: int,
+        adj_node: "BTreeNode[T]",
+        go_left: bool,
     ) -> "BTreeNode[T]":
         value = self.parent.values.pop(parent_value_ix)
 
@@ -94,11 +98,17 @@ class BTree(Tree[T]):
 
             if left_node is not None and not left_node.is_min_internal_order():
                 node.transfer(
-                    parent_value_ix=child_ix - 1, adj_node=left_node, go_left=True
+                    parent_value_ix=child_ix - 1,
+                    adj_node=left_node,
+                    go_left=True,
+                    rotate_children=True,
                 )
             elif right_node is not None and not right_node.is_min_internal_order():
                 node.transfer(
-                    parent_value_ix=child_ix, adj_node=right_node, go_left=False
+                    parent_value_ix=child_ix,
+                    adj_node=right_node,
+                    go_left=False,
+                    rotate_children=True,
                 )
             else:
                 if left_node is not None:

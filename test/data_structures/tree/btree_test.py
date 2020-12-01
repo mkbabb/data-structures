@@ -57,7 +57,7 @@ class BTreeTestBase(TreeTest):
         pass
 
     def test_insert_delete_many(self):
-        n = 1000
+        n = 10
         nums = list(range(n))
         random.shuffle(nums)
 

@@ -1,7 +1,8 @@
 from typing import *
 
-from ..utils import Comparator, bisect, default_comparator
+from ..utils.utils import Comparator, bisect, default_comparator
 from .btree import BTreeNode, BTree
+from .tree import Tree
 import math
 
 T = TypeVar("T")
@@ -46,6 +47,47 @@ class BPTreeNode(BTreeNode[T]):
 
         return split_value, right_node
 
+    def transfer(
+        self,
+        parent_value_ix: int,
+        adj_node: "BTreeNode[T]",
+        go_left: bool,
+        rotate_children: bool,
+    ) -> None:
+        super().transfer(parent_value_ix, adj_node, go_left, not self.is_leaf())
+
+    def merge(
+        self,
+        child_ix: int,
+        parent_value_ix: int,
+        adj_node: "BTreeNode[T]",
+        go_left: bool,
+    ) -> "BTreeNode[T]":
+        value = self.parent.values.pop(parent_value_ix)
+
+        if go_left:
+            self.values = adj_node.values + self.values
+            if not self.is_leaf():
+                self.children = adj_node.children + self.children
+            self.parent.children.pop(child_ix - 1)
+        else:
+            self.values += adj_node.values
+            if not self.is_leaf():
+                self.children += adj_node.children
+            self.parent.children.pop(child_ix + 1)
+
+        if self.is_leaf():
+            if go_left:
+                adj_node.next = self.next
+                if self.next is not None:
+                    self.next.previous = adj_node
+            else:
+                adj_node.previous = self.previous
+                if self.previous is not None:
+                    self.previous.next = adj_node
+
+        return self
+
 
 class BPTree(BTree[T]):
     def __init__(self, order: int, comparator: Comparator = default_comparator):
@@ -77,12 +119,23 @@ class BPTree(BTree[T]):
 
         return recurse(self.root)
 
-    def for_each(self, func: Callable[[T], None]) -> None:
-        node = self._successor(-1, self.root)
+    # def _on_delete(self, child_ix: int, node: BPTreeNode[T], value: T) -> None:
+    #     previous, next = node.previous, node.next
+
+    #     if previous is not None:
+    #         previous.next = next
+
+    #         if next is not None:
+    #             next.previous = previous
+
+    #     super()._on_delete(child_ix, node, value)
+
+    def in_order(self) -> Iterator[T]:
+        node = Tree.successor(-1, self.root)
 
         while True:
             for value in node.values:
-                func(value)
+                yield value
 
             node = node.next
 
