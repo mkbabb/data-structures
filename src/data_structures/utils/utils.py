@@ -52,6 +52,15 @@ def bisect_right(
     return bisect(arr, x, comparator, False, negate_found)
 
 
+def is_power_of(n: int, b: int) -> bool:
+    if n <= 1:
+        return False
+    else:
+        while n % b == 0:
+            n //= b
+        return n == 1
+
+
 if __name__ == "__main__":
     arr = [1, 2, 4]
 
