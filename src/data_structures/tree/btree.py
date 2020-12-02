@@ -170,6 +170,7 @@ class BTree(Tree[T]):
 
         return node
 
-    def _on_insert(self, value_ix: int, node: BTreeNode[T]) -> None:
+    def _on_insert(self, input_value: T, value_ix: int, node: BTreeNode[T]) -> None:
+        super()._on_insert(input_value, value_ix, node)
         if node.is_full():
             self._split_insert(node)

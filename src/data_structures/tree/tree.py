@@ -26,7 +26,7 @@ class TreeNode(Generic[T]):
         self.values = values
         self.children = children
 
-        for child in children:
+        for child in filter(lambda x: x is not None, self.children):
             child.parent = self
 
     def __repr__(self) -> str:
@@ -46,6 +46,9 @@ class TreeNode(Generic[T]):
 
     def is_full(self) -> bool:
         return len(self.values) >= self.tree_order
+
+    def is_empty(self) -> bool:
+        return len(self.values) == 0
 
     def get_child(self, ix: int) -> Optional["TreeNode[T]"]:
         if self.parent is not None:
@@ -155,16 +158,16 @@ class Tree(Generic[T]):
     def delete(self, input_value: T) -> T:
         child_ix, node, value = self._delete(input_value)
         self._on_delete(child_ix, node, value)
+
         return value
 
-    def _on_insert(self, value_ix: int, node: TreeNode[T]) -> None:
-        pass
+    def _on_insert(self, input_value: T, value_ix: int, node: TreeNode[T]) -> None:
+        node.values.insert(value_ix, input_value)
 
     def _insert(self, input_value: T) -> None:
         value_ix, node = self.find(input_value)
-        node.values.insert(value_ix, input_value)
 
-        self._on_insert(value_ix, node)
+        self._on_insert(input_value, value_ix, node)
 
     def insert(self, *input_values: T) -> None:
         for input_value in input_values:
