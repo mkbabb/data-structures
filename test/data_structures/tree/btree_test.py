@@ -57,12 +57,11 @@ class BTreeTestBase(TreeTest):
         pass
 
     def test_insert_delete_many(self):
-        n = 10
+        n = 1000
         nums = list(range(n))
         random.shuffle(nums)
 
         for order in range(3, 12):
-            print(f"order: {order}")
             tree = self.create_tree(order=order)
 
             for num in nums:
