@@ -93,7 +93,7 @@ class BPTree(BTree[T]):
     def __init__(self, order: int, comparator: Comparator = default_comparator):
         super().__init__(order, comparator)
 
-    def create_node(self, **kwargs: Any) -> BTreeNode[T]:
+    def _create_node(self, **kwargs: Any) -> BTreeNode[T]:
         return BPTreeNode(**kwargs)
 
     def _get_node_ix(

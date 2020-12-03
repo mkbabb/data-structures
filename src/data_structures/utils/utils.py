@@ -13,6 +13,8 @@ def bisect(
     comparator: Comparator = default_comparator,
     left: bool = True,
     negate_found: bool = True,
+    start: Optional[int] = None,
+    stop: Optional[int] = None,
 ) -> int:
     def recurse(low: int, high: int) -> int:
         midpoint = (high + low) // 2
@@ -31,7 +33,10 @@ def bisect(
         else:
             return -1 * (low + 1) if negate_found else low
 
-    return recurse(0, len(arr) - 1)
+    start = 0 if start is None else start
+    stop = len(arr) - 1 if stop is None else stop
+
+    return recurse(start, stop)
 
 
 def bisect_left(
@@ -39,8 +44,10 @@ def bisect_left(
     x: T,
     comparator: Comparator = default_comparator,
     negate_found: bool = True,
+    start: Optional[int] = None,
+    stop: Optional[int] = None,
 ) -> int:
-    return bisect(arr, x, comparator, True, negate_found)
+    return bisect(arr, x, comparator, True, negate_found, start, stop)
 
 
 def bisect_right(
@@ -48,8 +55,10 @@ def bisect_right(
     x: T,
     comparator: Comparator = default_comparator,
     negate_found: bool = True,
+    start: Optional[int] = None,
+    stop: Optional[int] = None,
 ) -> int:
-    return bisect(arr, x, comparator, False, negate_found)
+    return bisect(arr, x, comparator, False, negate_found, start, stop)
 
 
 def is_power_of(n: int, b: int) -> bool:
