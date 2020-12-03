@@ -19,11 +19,27 @@ class TreeNode(Generic[T]):
 
         self.parent = parent
 
-        self.children = [] if children is None else children
-        self.values = [] if values is None else values
+        self._children = [] if children is None else children
+        self._values = [] if values is None else values
 
         for child in filter(lambda x: x is not None, self.children):
             child.parent = self
+
+    @property
+    def children(self) -> List["TreeNode[T]"]:
+        return self._children
+
+    @children.setter
+    def children(self, other: List["TreeNode[T]"]) -> None:
+        self._children = other
+
+    @property
+    def values(self) -> List[T]:
+        return self._values
+
+    @values.setter
+    def values(self, other: List[T]) -> None:
+        self._values = other
 
     def __repr__(self) -> str:
         return f"{self.values}"
@@ -60,44 +76,17 @@ class TreeNode(Generic[T]):
 
         return get_child(left_ix), get_child(right_ix)
 
-    def rotate(
-        self,
-        parent_value_ix: int,
-        adj_node: "TreeNode[T]",
-        go_left: bool,
-        rotate_children: bool = True,
-    ) -> None:
-        parent = self.parent
-        new_root = adj_node.values.pop() if go_left else adj_node.values.pop(0)
-
-        new_sibling = parent.values[parent_value_ix]
-        parent.values[parent_value_ix] = new_root
-
-        if rotate_children:
-            if go_left:
-                self.values.insert(0, new_sibling)
-            else:
-                self.values.append(new_sibling)
-
-            if not adj_node.is_leaf():
-                child = adj_node.children.pop() if go_left else adj_node.children.pop(0)
-                child.parent = self
-                if go_left:
-                    self.children.insert(0, child)
-                else:
-                    self.children.append(child)
-
 
 class Tree(Generic[T]):
     def __init__(self, order: int, comparator: Comparator = default_comparator):
         self.order = order
         self.comparator = comparator
-        self.root: TreeNode[T] = self.create_node(tree_order=order)
+        self.root: TreeNode[T] = self._create_node(tree_order=order)
 
     def __repr__(self) -> str:
         return str(self.root)
 
-    def create_node(self, **kwargs: Any) -> TreeNode[T]:
+    def _create_node(self, **kwargs: Any) -> TreeNode[T]:
         return TreeNode(**kwargs)
 
     def _bisect(
@@ -112,14 +101,12 @@ class Tree(Generic[T]):
 
     def find(self, input_value: T) -> Tuple[int, TreeNode[T]]:
         def recurse(node: TreeNode[T]) -> Tuple[int, TreeNode[T]]:
-            ix = self._get_node_ix(node, input_value, negate_found=True)
-
-            if ix < 0:
+            if (ix := self._get_node_ix(node, input_value, negate_found=True)) < 0:
                 ix = -1 * (ix + 1)
-                if node.is_leaf():
+                if node.is_leaf() or (child := node.children[ix]) is None:
                     return ix, node
                 else:
-                    return recurse(node.children[ix])
+                    return recurse(child)
             else:
                 return ix, node
 
@@ -177,6 +164,7 @@ class Tree(Generic[T]):
             if not node.is_leaf():
                 for n, child in enumerate(node.children):
                     recurse(child)
+
                     if n < len(node.values):
                         yield node.values[n]
 

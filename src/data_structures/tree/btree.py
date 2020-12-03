@@ -47,6 +47,28 @@ class BTreeNode(TreeNode[T]):
 
         return split_value, right_node
 
+    def rotate(
+        self, parent_value_ix: int, adj_node: "TreeNode[T]", go_left: bool
+    ) -> None:
+        parent = self.parent
+        new_root = adj_node.values.pop() if go_left else adj_node.values.pop(0)
+
+        new_sibling = parent.values[parent_value_ix]
+        parent.values[parent_value_ix] = new_root
+
+        if go_left:
+            self.values.insert(0, new_sibling)
+        else:
+            self.values.append(new_sibling)
+
+        if not adj_node.is_leaf():
+            child = adj_node.children.pop() if go_left else adj_node.children.pop(0)
+            child.parent = self
+            if go_left:
+                self.children.insert(0, child)
+            else:
+                self.children.append(child)
+
     def transfer(
         self,
         parent_value_ix: int,
@@ -58,7 +80,6 @@ class BTreeNode(TreeNode[T]):
             parent_value_ix=parent_value_ix,
             adj_node=adj_node,
             go_left=go_left,
-            rotate_children=rotate_children,
         )
         return self
 
@@ -87,7 +108,7 @@ class BTree(Tree[T]):
     def __init__(self, order: int, comparator: Comparator = default_comparator):
         super().__init__(order, comparator)
 
-    def create_node(self, **kwargs: Any) -> BTreeNode[T]:
+    def _create_node(self, **kwargs: Any) -> BTreeNode[T]:
         return BTreeNode(**kwargs)
 
     def _delete_min_order(self, child_ix: int, node: BTreeNode[T]):
@@ -100,17 +121,11 @@ class BTree(Tree[T]):
 
             if left_node is not None and not left_node.is_min_internal_order():
                 node.transfer(
-                    parent_value_ix=child_ix - 1,
-                    adj_node=left_node,
-                    go_left=True,
-                    rotate_children=True,
+                    parent_value_ix=child_ix - 1, adj_node=left_node, go_left=True
                 )
             elif right_node is not None and not right_node.is_min_internal_order():
                 node.transfer(
-                    parent_value_ix=child_ix,
-                    adj_node=right_node,
-                    go_left=False,
-                    rotate_children=True,
+                    parent_value_ix=child_ix, adj_node=right_node, go_left=False
                 )
             else:
                 if left_node is not None:
@@ -141,7 +156,7 @@ class BTree(Tree[T]):
                     )
                     self._delete_min_order(parent_ix, parent)
 
-    def _on_delete(self, child_ix: int, node: BTreeNode[T], value: T) -> None:
+    def _on_delete(self, child_ix: int, node: BTreeNode[T], value: T) -> T:
         if node.is_min_leaf_order() and not node.is_root():
             self._delete_min_order(child_ix, node)
             return value
@@ -160,11 +175,8 @@ class BTree(Tree[T]):
         else:
             children = [node, right_node]
             values = [split_value]
-            self.root = parent = self.create_node(
-                tree_order=self.order,
-                children=children,
-                values=values,
-                parent=parent,
+            self.root = parent = self._create_node(
+                tree_order=self.order, children=children, values=values, parent=parent
             )
 
         if parent.is_full():
@@ -174,5 +186,6 @@ class BTree(Tree[T]):
 
     def _on_insert(self, input_value: T, value_ix: int, node: BTreeNode[T]) -> None:
         super()._on_insert(input_value, value_ix, node)
+        
         if node.is_full():
             self._split_insert(node)
