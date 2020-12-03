@@ -1,7 +1,7 @@
 import math
 from typing import *
 
-from data_structures.list.vector import Vector
+from src.data_structures.list.vector import Vector
 from src.data_structures.tree.tree import Tree, TreeNode
 from src.data_structures.utils.utils import Comparator, bisect, default_comparator
 

@@ -15,10 +15,11 @@ class BinaryNode(TreeNode[T]):
         parent: Optional["BinaryNode[T]"] = None,
     ) -> None:
         super().__init__(tree_order=1, children=[left, right], parent=parent)
+        
         if value is not None:
             self.values.append(value)
 
-    def rotate(self, go_left: bool):
+    def rotate(self, go_left: bool) -> "BinaryNode[T]":
         left_node, right_node = self.left, self.right
 
         if go_left:
@@ -57,6 +58,7 @@ class BinaryNode(TreeNode[T]):
     def right(self, other: T) -> None:
         self.children[1] = other
 
+    @property
     def value(self) -> T:
         return self.values[0]
 
