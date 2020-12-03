@@ -19,8 +19,8 @@ class TreeNode(Generic[T]):
 
         self.parent = parent
 
-        self.children = Vector(data=children, capacity=self.tree_order + 1)
-        self.values = Vector(data=values, capacity=self.tree_order)
+        self.children = [] if children is None else children
+        self.values = [] if values is None else values
 
         for child in filter(lambda x: x is not None, self.children):
             child.parent = self
