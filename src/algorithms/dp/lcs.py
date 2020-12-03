@@ -1,5 +1,4 @@
 from typing import *
-from dataclasses import dataclass
 
 
 def factorial(n: int) -> int:
