@@ -1,6 +1,7 @@
 from typing import *
 
-from ..utils.utils import Comparator, bisect, default_comparator
+from src.data_structures.utils.utils import Comparator, bisect, default_comparator
+from src.data_structures.list.vector import Vector
 
 
 T = TypeVar("T")
@@ -10,21 +11,16 @@ class TreeNode(Generic[T]):
     def __init__(
         self,
         tree_order: int,
-        children: Optional[List["TreeNode[T]"]] = None,
-        values: Optional[List[T]] = None,
+        children: Optional[Union[Vector["TreeNode[T]"], List["TreeNode[T]"]]] = None,
+        values: Optional[Union[Vector[T], List[T]]] = None,
         parent: Optional["TreeNode[T]"] = None,
     ) -> None:
         self.tree_order = tree_order
 
         self.parent = parent
 
-        if children is None:
-            children = []
-        if values is None:
-            values = []
-
-        self.values = values
-        self.children = children
+        self.children = Vector(data=children, capacity=self.tree_order + 1)
+        self.values = Vector(data=values, capacity=self.tree_order)
 
         for child in filter(lambda x: x is not None, self.children):
             child.parent = self
@@ -50,19 +46,19 @@ class TreeNode(Generic[T]):
     def is_empty(self) -> bool:
         return len(self.values) == 0
 
-    def get_child(self, ix: int) -> Optional["TreeNode[T]"]:
-        if self.parent is not None:
-            if ix >= 0 and ix < len(self.parent.children):
-                return self.parent.children[ix]
-        return None
-
     def siblings(
         self, parent_ix: int
     ) -> Tuple[Optional["TreeNode[T]"], Optional["TreeNode[T]"]]:
+        def get_child(ix: int) -> Optional["TreeNode[T]"]:
+            if self.parent is not None:
+                if ix >= 0 and ix < len(self.parent.children):
+                    return self.parent.children[ix]
+            return None
+
         left_ix = parent_ix - 1
         right_ix = parent_ix + 1
 
-        return self.get_child(left_ix), self.get_child(right_ix)
+        return get_child(left_ix), get_child(right_ix)
 
     def rotate(
         self,
@@ -97,6 +93,9 @@ class Tree(Generic[T]):
         self.order = order
         self.comparator = comparator
         self.root: TreeNode[T] = self.create_node(tree_order=order)
+
+    def __repr__(self) -> str:
+        return str(self.root)
 
     def create_node(self, **kwargs: Any) -> TreeNode[T]:
         return TreeNode(**kwargs)

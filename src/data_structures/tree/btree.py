@@ -1,8 +1,9 @@
 import math
 from typing import *
 
-from ..utils.utils import Comparator, bisect, default_comparator
-from .tree import Tree, TreeNode
+from data_structures.list.vector import Vector
+from src.data_structures.tree.tree import Tree, TreeNode
+from src.data_structures.utils.utils import Comparator, bisect, default_comparator
 
 T = TypeVar("T")
 
@@ -11,12 +12,15 @@ class BTreeNode(TreeNode[T]):
     def __init__(
         self,
         tree_order: int,
-        children: Optional[List["BTreeNode[T]"]] = None,
-        values: Optional[List[T]] = None,
+        children: Optional[Vector["BTreeNode[T]"]] = None,
+        values: Optional[Vector[T]] = None,
         parent: Optional["BTreeNode[T]"] = None,
     ) -> None:
         super().__init__(tree_order, children, values, parent)
         self.min_order = int(math.ceil(tree_order / 2))
+
+        self.split_value_ix = int(math.floor(self.tree_order / 2))
+        self.split_child_ix = int(math.ceil((self.tree_order + 1) / 2))
 
     def is_min_internal_order(self) -> bool:
         return self.order() < self.min_order
@@ -25,16 +29,14 @@ class BTreeNode(TreeNode[T]):
         return self.order() < self.min_order - 1
 
     def split(self) -> Tuple[T, "BTreeNode[T]"]:
-        value_ix = int(math.floor(self.tree_order / 2))
-        child_ix = int(math.ceil((self.tree_order + 1) / 2))
 
-        right_children = self.children[child_ix:]
-        self.children = self.children[:child_ix]
+        right_children = self.children[self.split_child_ix :]
+        self.children = self.children[: self.split_child_ix]
 
-        split_value = self.values[value_ix]
+        split_value = self.values[self.split_value_ix]
 
-        right_values = self.values[value_ix + 1 :]
-        self.values = self.values[:value_ix]
+        right_values = self.values[self.split_value_ix + 1 :]
+        self.values = self.values[: self.split_value_ix]
 
         right_node = self.__class__(
             tree_order=self.tree_order,
@@ -74,8 +76,8 @@ class BTreeNode(TreeNode[T]):
             self.children = adj_node.children + self.children
             self.parent.children.pop(child_ix - 1)
         else:
-            self.values += [value] + adj_node.values
-            self.children += adj_node.children
+            self.values = self.values + [value] + adj_node.values
+            self.children = self.children + adj_node.children
             self.parent.children.pop(child_ix + 1)
 
         return self

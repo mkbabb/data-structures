@@ -1,9 +1,7 @@
-from typing import TypeVar
-import math
 from typing import *
 
-from ..utils.utils import Comparator, bisect, default_comparator
-from .tree import Tree, TreeNode
+from src.data_structures.tree import Tree, TreeNode
+from src.data_structures.utils.utils import Comparator, bisect, default_comparator
 
 T = TypeVar("T")
 
@@ -15,9 +13,9 @@ class BinaryNode(TreeNode[T]):
         left: Optional["BinaryNode[T]"] = None,
         right: Optional["BinaryNode[T]"] = None,
         parent: Optional["BinaryNode[T]"] = None,
-        **kwargs
+        **kwargs: Any
     ) -> None:
-        super().__init__(2, [left, right], None, parent)
+        super().__init__(tree_order=1, children=[left, right], parent=parent)
         if value is not None:
             self.values.append(value)
 
@@ -47,3 +45,9 @@ class BinaryTree(Tree[T]):
         else:
             child = BinaryNode(input_value, parent=node)
             node.children[value_ix] = child
+
+
+if __name__ == "__main__":
+    tree = BinaryTree()
+    tree.insert(1, 2, 3, 4, 5, 6)
+    print(tree.root)
