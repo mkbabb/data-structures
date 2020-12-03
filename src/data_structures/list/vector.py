@@ -5,11 +5,15 @@ T = TypeVar("T")
 
 class Vector(Iterable[T]):
     def __init__(
-        self, data: Optional[Union[List[T], "Vector[T]"]] = None, capacity: int = 10
+        self,
+        data: Optional[Union[List[T], "Vector[T]"]] = None,
+        capacity: int = 10,
+        fixed_size: bool = True,
     ):
         self.capacity = capacity
         self.size = 0
         self.data: List[Optional[T]] = [None] * self.capacity
+        self.fixed_size = fixed_size
 
         if data is not None:
             for i in data:
@@ -22,6 +26,9 @@ class Vector(Iterable[T]):
         return self.data[: self.size].__repr__()
 
     def insert(self, ix: int, value: T) -> None:
+        if not self.fixed_size:
+            self._grow()
+
         self._check_index(ix + 1)
 
         for i in range(self.size, ix, -1):
@@ -55,6 +62,11 @@ class Vector(Iterable[T]):
         else:
             if ix > self.capacity or abs(ix) - 1 > self.capacity:
                 raise IndexError
+
+    def _grow(self):
+        if len(self) >= self.capacity - 1:
+            self.data = self.data + [None] * self.capacity
+            self.capacity = len(self.data)
 
     def __iter__(self) -> Generator[T, None, None]:
         for i in range(len(self)):
@@ -90,3 +102,9 @@ class Vector(Iterable[T]):
             other = other.data[ix]
 
         self.data.__setitem__(ix, other)
+
+
+if __name__ == "__main__":
+    v = Vector([1, 2, 3, 4], fixed_size=False, capacity=5)
+    v.append(5)
+    v.append(6)
