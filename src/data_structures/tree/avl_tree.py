@@ -33,11 +33,32 @@ class AVLTree(BinaryTree[T]):
         node.bf = node.left.height - node.right.height
         self.rebalance(node)
 
-    def update_height(self) -> None:
-        return
+    def update_height(self, node: AVLTreeNode) -> None:
+        if node is not None:
+            def recurse(node: AVLTreeNode[T]):
+                if node.left is not None:
+                    recurse(node.left)
+                if node.right is not None:
+                    recurse(node.right)
 
-    def update_bf(self) -> None:
-        return
+                node.height = max(node.left.height - node.right.height) + 1
+
+        else:
+            node.height = -1
+
+
+    def update_bf(self, node: AVLTreeNode[T]) -> None:
+        if node is not None:
+            def recurse(node: AVLTreeNode[T]):
+                if node.left is not None:
+                    recurse(node.left)
+                if node.right is not None:
+                    recurse(node.right)
+
+                node.bf = self.node.left.height - self.node.right.height 
+
+        else:
+            node.height = 0
 
     def rebalance(self, node: AVLTreeNode[T]) -> None:
         tree_changed = False
@@ -59,10 +80,10 @@ class AVLTree(BinaryTree[T]):
                 super().rotate(False)
 
         if tree_changed:
-            self.update_height()
-            self.update_bf()
+            self.update_height(self.root)
+            self.update_bf(self.root)
 
     def _on_delete(self, child_ix: int, node: TreeNode[T], value: T) -> None:
         self.rebalance(node.parent)
-        self.update_height()
-        self.update_bf()
+        self.update_height(self.root)
+        self.update_bf(self.root)
