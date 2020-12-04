@@ -44,19 +44,10 @@ class SparseList(Generic[T]):
         ix = ix if ix is not None else self.size - 1
 
         if (six := self.to_sparse_index(ix)) is not None:
-            self.data.pop(six)
-            return self.__class__()
-        # ix = ix if ix is not None else self.size - 1
-
-        # if (six := self.to_sparse_index(ix)) is not None:
-        #     self.data_map[ix] = None
-        #     value = self.data[six]
-        #     self.data[six] = None
-
-        #     self.size -= 1
-        #     return value
-        # else:
-        #     raise IndexError
+            self.data_map[ix] = None
+            return self.data.pop(six)
+        else:
+            raise IndexError
 
     def copy(self) -> "SparseList[T]":
         out = self.__class__(self.capacity)
