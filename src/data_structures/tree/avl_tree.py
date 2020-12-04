@@ -7,8 +7,30 @@ from src.data_structures.utils.utils import Comparator, bisect, default_comparat
 
 T = TypeVar("T")
 
-#might need avl tree node that
-#has an additional property of height
+class AVLTreeNode(BinaryNode[T]):
+    def __init__(
+        self,
+        height: int,
+        value: Optional[T] = None,
+        left: Optional["BinaryNode[T]"] = None,
+        right: Optional["BinaryNode[T]"] = None,
+        parent: Optional["BinaryNode[T]"] = None,
+    ) -> None:
+        self.height = height
+        super().__init__(tree_order=1, children=[left, right], parent=parent)
+        
+        if value is not None:
+            self.values.append(value)
+
+    @property
+    def height(self) -> int:
+        return self.height
+
+    @height.setter
+    def height(self, other = int):
+        self.height = other
+
+
 class AVLTree(BinaryTree[T]):
     def __init__(self, comparator: Comparator = default_comparator):
         super().__init__(1, comparator)
