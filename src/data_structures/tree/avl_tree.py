@@ -22,52 +22,47 @@ class AVLTreeNode(BinaryNode[T]):
         if value is not None:
             self.values.append(value)
 
-    @property
-    def height(self) -> int:
-        return self.height
-
-    @height.setter
-    def height(self, other = int):
-        self.height = other
-
-    @property
-    def balance_factor(self) -> int:
-        return self.balance_factor
-
-    @balance_factor.setter
-    def balance_factor(self, other = int):
-        self.bf = other
-
 
 class AVLTree(BinaryTree[T]):
     def __init__(self, comparator: Comparator = default_comparator):
         super().__init__(1, comparator)
 
-    def _on_insert(self, input_value: T, value_ix: int, node: BinaryNode[T]) -> None:
+    def _on_insert(self, input_value: T, value_ix: int, node: AVLTreeNode[T]) -> None:
         super()._on_insert(1, input_value, value_ix, node)
-        node.height = max(node.left.height() - node.right.height()) + 1
-        node.bf = node.left.height() - node.right.height()
-        self.rebalance()
+        node.height = max(node.left.height - node.right.height) + 1
+        node.bf = node.left.height - node.right.height
+        self.rebalance(node)
 
-    #return the index where you need to rebalance
-    def compute_height(self, AVLTreeNode = AVLTreeNode[T]) -> int:
-        if self is None:
-            return 0
-        else:
-            return AVLTreeNode.height()
+    def update_height(self) -> None:
+        return
 
-    def update_heights(self) -> None:
-        if self is None:
-            self.height = -1
-        else:
-            return
+    def update_bf(self) -> None:
+        return
 
-    def rebalance(self) -> None:
-        if self.compute_heights() is not -1:
-            return
-        #balance if needed
-        self.update_heights()
+    def rebalance(self, node: AVLTreeNode[T]) -> None:
+        tree_changed = False
 
-    def _delete(self, input_value: T) -> None:
-        super()._delete(self, input_value)
-        self.rebalance()
+        if node.bf == -2:
+            tree_changed = True
+            if node.right.bf > 0: #right left rotate
+                node.right = super().rotate(False)
+                super().rotate(True)
+            else:
+                super().rotate(True)
+
+        elif node.bf == 2:
+            tree_changed = True
+            if node.left.bf < 0:
+                node.left = super().rotate(True) #left right rotate
+                super().rotate(False)
+            else:
+                super().rotate(False)
+
+        if tree_changed:
+            self.update_height()
+            self.update_bf()
+
+    def _on_delete(self, child_ix: int, node: TreeNode[T], value: T) -> None:
+        self.rebalance(node.parent)
+        self.update_height()
+        self.update_bf()
