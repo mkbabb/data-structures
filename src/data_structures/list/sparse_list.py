@@ -15,12 +15,20 @@ def set_nth_bit(i: int, n: int, b: int) -> int:
     return (i & (~(1 << n))) | (b << n)
 
 
-class SparseList(Generic[T]):
-    def __init__(self, capacity: int):
-        self.capacity = capacity
+class SparseList(Generic[T], Sized, Iterable[T]):
+    def __init__(self, capacity: int, data: Optional[List[T]] = None):
+        if data is not None:
+            self.capacity = max(len(data), capacity)
+        else:
+            self.capacity = capacity
+
         self.data: List[T] = []
-        self.data_map: List[Optional[int]] = [None] * capacity
+        self.data_map: List[Optional[int]] = [None] * self.capacity
         self.size = 0
+
+        if data is not None:
+            for n, i in enumerate(data):
+                self.insert(n, i)
 
     def __repr__(self) -> str:
         return self.data.__repr__()
@@ -74,6 +82,9 @@ class SparseList(Generic[T]):
     def __iter__(self) -> Generator[T, None, None]:
         for i in self.data:
             yield i
+
+    def __len__(self) -> int:
+        return self.size
 
 
 if __name__ == "__main__":
