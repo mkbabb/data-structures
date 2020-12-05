@@ -11,35 +11,19 @@ class TreeNode(Generic[T]):
     def __init__(
         self,
         tree_order: int,
-        children: Optional[Union[Vector["TreeNode[T]"], List["TreeNode[T]"]]] = None,
-        values: Optional[Union[Vector[T], List[T]]] = None,
+        children: Optional[List["TreeNode[T]"]] = None,
+        values: Optional[List[T]] = None,
         parent: Optional["TreeNode[T]"] = None,
     ) -> None:
         self.tree_order = tree_order
 
         self.parent = parent
 
-        self._children = [] if children is None else children
-        self._values = [] if values is None else values
+        self.children = [] if children is None else children
+        self.values = [] if values is None else values
 
         for child in filter(lambda x: x is not None, self.children):
             child.parent = self
-
-    @property
-    def children(self) -> List["TreeNode[T]"]:
-        return self._children
-
-    @children.setter
-    def children(self, other: List["TreeNode[T]"]) -> None:
-        self._children = other
-
-    @property
-    def values(self) -> List[T]:
-        return self._values
-
-    @values.setter
-    def values(self, other: List[T]) -> None:
-        self._values = other
 
     def __repr__(self) -> str:
         return f"{self.values}"
