@@ -18,50 +18,39 @@ class TrieNode(Generic[T]):
         self,
         tree_order: int,
         children: Optional[SparseList["TrieNode[T]"]] = None,
-        parent: Optional["TrieNode[T]"] = None,
-    ):
-        self.tree_order = tree_order
-        self.children = children
-        self.parent = parent
-
-    def __repr__(self) -> str:
-        return f"{self.children}"
-
-    def copy(self) -> "TrieNode[T]":
-        return self.__class__(
-            tree_order=self.tree_order,
-            children=(
-                self.children.copy() if self.children is not None else self.children
-            ),
-            parent=self.parent,
-        )
-
-
-class TrieLeafNode(TrieNode[T]):
-    def __init__(
-        self,
-        tree_order: int,
         values: Optional[SparseList[T]] = None,
         parent: Optional["TrieNode[T]"] = None,
-    ) -> None:
-        super().__init__(tree_order=tree_order, children=None, parent=parent)
-        self.values = values if values is not None else SparseList(self.tree_order)
+        is_leaf: bool = False,
+    ):
+        self.tree_order = tree_order
+
+        if is_leaf:
+            values = values if values is not None else SparseList(self.tree_order)
+        else:
+            children if children is not None else SparseList(self.tree_order)
+
+        self.children = children
+        self.values = values
+        self.parent = parent
+        self.is_leaf = is_leaf
 
     def __repr__(self) -> str:
         return f"{self.values}"
 
-    def copy(self) -> "TrieLeafNode[T]":
+    def copy(self) -> "TrieNode[T]":
         return self.__class__(
             tree_order=self.tree_order,
-            values=self.values.copy(),
+            children=self.children if self.is_leaf else self.children.copy(),
+            values=self.values,
             parent=self.parent,
+            is_leaf=self.is_leaf,
         )
 
 
 class Trie(Generic[T]):
     def __init__(self, order: int):
         self.order = order
-        self.root: TrieNode[T] = TrieLeafNode[T](order)
+        self.root: TrieNode[T] = TrieNode[T](order, is_leaf=True)
         self.size = 0
         self.bits = int(math.log2(order))
         self.mask = self.order - 1
@@ -97,7 +86,7 @@ class Trie(Generic[T]):
 
     def path_to(
         self, ix: int, node: TrieNode[T], height: Optional[int] = None
-    ) -> TrieLeafNode[T]:
+    ) -> TrieNode[T]:
         """Start at the root and work down.
         We carve up `key` into h sections of length `bits`, where h is the height of the tree.
         Example:
@@ -117,8 +106,10 @@ class Trie(Generic[T]):
             ix_i = self.slice_key(ix, level)
 
             if (child := node.children[ix_i]) is None:
-                t_type = TrieLeafNode if level == 1 else TrieNode
-                node.children.insert(ix_i, t_type(self.order, parent=node))
+                is_leaf = level == 1
+                node.children.insert(
+                    ix_i, TrieNode(self.order, parent=node, is_leaf=is_leaf)
+                )
             else:
                 node.children[ix_i] = child.copy() if not self.mutation else child
 
@@ -128,7 +119,7 @@ class Trie(Generic[T]):
         return node
 
     def put(self, ix: int, value: T) -> "Trie[T]":
-        def get_next_leaf() -> Tuple[TrieNode[T], TrieLeafNode[T]]:
+        def get_next_leaf() -> Tuple[TrieNode[T], TrieNode[T]]:
             if ix == self.size and is_power_of(ix, b=self.order):
                 root = TrieNode(
                     self.order, children=SparseList(self.order, data=[self.root])
